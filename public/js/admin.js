@@ -463,14 +463,26 @@ function renderPrizesList() {
     
     container.innerHTML = adminData.prizes.map((prize, index) => {
         const color = oilColors[index % oilColors.length];
+        const qtyAvailable = prize.quantity_available ?? -1;
+        const qtyWon = prize.quantity_won ?? 0;
+        const isLimited = qtyAvailable >= 0;
+        const isSoldOut = isLimited && qtyWon >= qtyAvailable;
+        
+        let quantityBadge = '';
+        if (isLimited) {
+            const remaining = Math.max(0, qtyAvailable - qtyWon);
+            quantityBadge = `<span class="stat-item" style="${isSoldOut ? 'color: #ff4444;' : ''}">🎫 ${remaining}/${qtyAvailable}</span>`;
+        }
+        
         return `
-        <div class="prize-item-compact" data-id="${prize.id}">
+        <div class="prize-item-compact" data-id="${prize.id}" ${isSoldOut ? 'style="opacity: 0.6;"' : ''}>
             <div class="prize-color-bar" style="background: ${color};"></div>
             <div class="prize-info-compact">
-                <div class="prize-name">${prize.name}</div>
+                <div class="prize-name">${prize.name}${isSoldOut ? ' ❌' : ''}</div>
                 <div class="prize-stats">
                     <span class="stat-item">💰 ${prize.value} TON</span>
                     <span class="stat-item">📊 ${prize.probability}%</span>
+                    ${quantityBadge}
                 </div>
             </div>
             <div class="prize-actions-compact">
@@ -512,6 +524,17 @@ function openEditPrizeModal(prizeId) {
     document.getElementById('edit-prize-name').value = prize.name;
     document.getElementById('edit-prize-value').value = prize.value;
     document.getElementById('edit-prize-probability').value = prize.probability;
+    document.getElementById('edit-prize-quantity').value = prize.quantity_available ?? -1;
+    
+    // Show quantity_won if it's a limited prize
+    const qtyWonGroup = document.getElementById('edit-prize-quantity-won-group');
+    const qtyWonInput = document.getElementById('edit-prize-quantity-won');
+    if ((prize.quantity_available ?? -1) >= 0) {
+        qtyWonGroup.style.display = 'block';
+        qtyWonInput.value = prize.quantity_won ?? 0;
+    } else {
+        qtyWonGroup.style.display = 'none';
+    }
     
     const modal = document.getElementById('edit-prize-modal');
     modal.classList.add('active');
@@ -521,6 +544,7 @@ async function addPrize() {
     const name = document.getElementById('prize-name').value.trim();
     const value = parseFloat(document.getElementById('prize-value').value);
     const probability = parseFloat(document.getElementById('prize-probability').value);
+    const quantity = parseInt(document.getElementById('prize-quantity').value);
     
     if (!name || isNaN(value) || isNaN(probability)) {
         showToast('❌ يرجى ملء جميع الحقول بشكل صحيح', 'error');
@@ -534,12 +558,13 @@ async function addPrize() {
     
     try {
         showLoading();
-        DebugError.add('🔄 Adding new prize...', 'info', { name, value, probability });
+        DebugError.add('🔄 Adding new prize...', 'info', { name, value, probability, quantity });
         
         const result = await API.request('/admin/prizes', 'POST', {
             name,
             value,
             probability,
+            quantity_available: isNaN(quantity) ? -1 : quantity,
             position: adminData.prizes.length
         });
         
@@ -554,6 +579,7 @@ async function addPrize() {
             document.getElementById('prize-name').value = '';
             document.getElementById('prize-value').value = '';
             document.getElementById('prize-probability').value = '';
+            document.getElementById('prize-quantity').value = '-1';
             
             // Close modal first
             closeModal('add-prize-modal');
@@ -584,6 +610,7 @@ async function updatePrize() {
     const name = document.getElementById('edit-prize-name').value.trim();
     const value = parseFloat(document.getElementById('edit-prize-value').value);
     const probability = parseFloat(document.getElementById('edit-prize-probability').value);
+    const quantity = parseInt(document.getElementById('edit-prize-quantity').value);
     
     if (!name || isNaN(value) || isNaN(probability)) {
         showToast('❌ يرجى ملء جميع الحقول بشكل صحيح', 'error');
@@ -600,6 +627,7 @@ async function updatePrize() {
         name,
         value,
         probability,
+        quantity_available: isNaN(quantity) ? -1 : quantity,
         position: prize.position || 0
     };
     
