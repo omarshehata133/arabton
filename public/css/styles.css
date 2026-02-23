@@ -271,8 +271,8 @@ body {
 
 .wheel-nft-animation {
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 45px;
+    height: 45px;
     pointer-events: none;
     transform-origin: center center;
     transition: none;
