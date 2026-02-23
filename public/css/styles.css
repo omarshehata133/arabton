@@ -1,5 +1,5 @@
 /* 
-    🐼 PANDA GIVEAWAYS - STYLES
+    🎁 ARAB TON GIFTS - STYLES
     Modern, Secure, and Beautiful Mini App
 */
 
@@ -256,6 +256,32 @@ body {
     /* تحسين جودة الرسم */
     image-rendering: -webkit-optimize-contrast;
     image-rendering: crisp-edges;
+}
+
+/* 🎁 NFT Animations Overlay */
+.wheel-animations-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.wheel-nft-animation {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    pointer-events: none;
+    transform-origin: center center;
+    transition: none;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.3));
+}
+
+.wheel-nft-animation lottie-player {
+    width: 100%;
+    height: 100%;
 }
 
 .spin-button {
