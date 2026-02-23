@@ -56,6 +56,10 @@ class WheelOfFortune {
             win: null
         };
         
+        // 🎁 Initialize NFT animations overlay
+        this.nftAnimations = [];
+        this.initializeNFTAnimations();
+        
         // تأخير صغير لضمان DOM جاهز
         setTimeout(() => {
             try {
@@ -70,6 +74,88 @@ class WheelOfFortune {
         if (this.spinButton) {
             this.spinButton.addEventListener('click', () => this.spin());
         }
+    }
+    
+    // ═══════════════════════════════════════════════════════════
+    // 🎁 NFT ANIMATIONS OVERLAY
+    // ═══════════════════════════════════════════════════════════
+    
+    initializeNFTAnimations() {
+        const overlay = document.getElementById('wheel-animations-overlay');
+        if (!overlay) return;
+        
+        // Clear existing animations
+        overlay.innerHTML = '';
+        this.nftAnimations = [];
+        
+        // Create animation elements for NFT prizes
+        this.prizes.forEach((prize, index) => {
+            if (prize.name === 'NFT' && prize.emoji) {
+                const animContainer = document.createElement('div');
+                animContainer.className = 'wheel-nft-animation';
+                animContainer.dataset.prizeIndex = index;
+                
+                // Try to load animation file
+                const animFile = this.getAnimationFile(prize.emoji);
+                
+                if (animFile && typeof customElements !== 'undefined' && customElements.get('lottie-player')) {
+                    // Use lottie-player for animation
+                    animContainer.innerHTML = `
+                        <lottie-player 
+                            src="./img/${animFile}" 
+                            background="transparent" 
+                            speed="1" 
+                            loop 
+                            autoplay
+                            style="width: 100%; height: 100%;">
+                        </lottie-player>
+                    `;
+                } else {
+                    // Fallback to emoji
+                    animContainer.innerHTML = `<span style="font-size: 50px; display: block;">${prize.emoji}</span>`;
+                }
+                
+                overlay.appendChild(animContainer);
+                
+                this.nftAnimations.push({
+                    index: index,
+                    element: animContainer,
+                    emoji: prize.emoji
+                });
+            }
+        });
+        
+        // Update initial positions
+        this.updateNFTAnimationsPosition();
+    }
+    
+    getAnimationFile(emoji) {
+        // Map emoji to animation file
+        const animationMap = {
+            '🎄': 'NFTXmasStocking.json',
+            '🧁': 'NFTWhipcupcake.json'
+        };
+        return animationMap[emoji] || null;
+    }
+    
+    updateNFTAnimationsPosition() {
+        if (!this.centerX || !this.centerY || !this.radius) return;
+        
+        const anglePerSegment = (2 * Math.PI) / this.prizes.length;
+        
+        this.nftAnimations.forEach(anim => {
+            const index = anim.index;
+            const angle = this.rotation + (index * anglePerSegment) + (anglePerSegment / 2);
+            
+            // Calculate position (on the left side of the segment, close to center)
+            const distance = this.radius * 0.48; // Position in the left-center area
+            const x = this.centerX + Math.cos(angle) * distance;
+            const y = this.centerY + Math.sin(angle) * distance;
+            
+            // Apply transform (centered on the calculated position, rotated to align with segment)
+            const rotationDeg = (angle * 180 / Math.PI) + 90;
+            anim.element.style.transform = `translate(${x - 30}px, ${y - 30}px) rotate(${rotationDeg}deg)`;
+        });
     }
     
     // ═══════════════════════════════════════════════════════════
@@ -257,18 +343,15 @@ class WheelOfFortune {
                 ctx.shadowOffsetX = 0;
                 ctx.shadowOffsetY = 2;
                 
-                // النص نفسه - مع حجم أكبر للإيموجي بالنسبة للـ NFT
+                // النص نفسه - مع عرض خاص للـ NFT
                 const isNFT = prize.name === 'NFT';
                 
                 if (isNFT) {
-                    // NFT prizes - نص أصغر + إيموجي كبير
-                    ctx.fillStyle = '#FFD700'; // ذهبي للـ NFT
-                    ctx.font = '600 14px Inter, system-ui, sans-serif';
-                    ctx.fillText('NFT', radius * 0.65, -8);
-                    
-                    // رسم الإيموجي بحجم أكبر
-                    ctx.font = '32px Inter, system-ui, sans-serif';
-                    ctx.fillText(prize.emoji || '🎁', radius * 0.65, 12);
+                    // NFT prizes - نص على اليمين فقط (الإيموجي في overlay)
+                    ctx.textAlign = 'right';
+                    ctx.fillStyle = '#FFD700'; // ذهبي
+                    ctx.font = 'bold 18px Inter, system-ui, sans-serif';
+                    ctx.fillText('NFT', radius * 0.80, 0);
                 } else {
                     // باقي الجوائز - عرض عادي
                     ctx.fillStyle = '#F2F2F2';
@@ -330,6 +413,9 @@ class WheelOfFortune {
         } catch (borderError) {
             // في حالة خطأ الحدود، لا نفعل شيء (العجلة ستكون بدون حدود فقط)
         }
+        
+        // 🎁 Update NFT animations positions
+        this.updateNFTAnimationsPosition();
     }
     
     // ═══════════════════════════════════════════════════════════
