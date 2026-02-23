@@ -20,8 +20,8 @@ const CONFIG = {
         { name: '1.5 TON', amount: 1.5, probability: 0, color: '#32CD32', emoji: '🏆', id: 5 },
         { name: '2 TON', amount: 2, probability: 0, color: '#FF1493', emoji: '🎁', id: 6 },
         { name: '3 TON', amount: 3, probability: 0, color: '#FFD700', emoji: '💰', id: 7 },
-        { name: 'Xmas Stocking', amount: 0, probability: 5, color: '#FF0000', emoji: '🎁', id: 8, animationFile: 'NFTXmasStocking.json' },
-        { name: 'Whip cupcake', amount: 0, probability: 0, color: '#FF69B4', emoji: '🧁', id: 9, animationFile: 'NFTWhipcupcake.json' },
+        { name: 'NFT', amount: 0, probability: 5, color: '#FF0000', emoji: '🎄', id: 8, animationFile: 'NFTXmasStocking.json' },
+        { name: 'NFT', amount: 0, probability: 0, color: '#FF69B4', emoji: '🧁', id: 9, animationFile: 'NFTWhipcupcake.json' },
         { name: '8 TON', amount: 8, probability: 0, color: '#FF0000', emoji: '🚀', id: 10 }
     ],
     

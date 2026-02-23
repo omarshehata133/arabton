@@ -257,10 +257,25 @@ class WheelOfFortune {
                 ctx.shadowOffsetX = 0;
                 ctx.shadowOffsetY = 2;
                 
-                // النص نفسه
-                ctx.fillStyle = '#F2F2F2';
-                ctx.font = '600 16px Inter, system-ui, sans-serif';
-                ctx.fillText(prize.name, radius * 0.65, 0);
+                // النص نفسه - مع حجم أكبر للإيموجي بالنسبة للـ NFT
+                const isNFT = prize.name === 'NFT';
+                
+                if (isNFT) {
+                    // NFT prizes - نص أصغر + إيموجي كبير
+                    ctx.fillStyle = '#FFD700'; // ذهبي للـ NFT
+                    ctx.font = '600 14px Inter, system-ui, sans-serif';
+                    ctx.fillText('NFT', radius * 0.65, -8);
+                    
+                    // رسم الإيموجي بحجم أكبر
+                    ctx.font = '32px Inter, system-ui, sans-serif';
+                    ctx.fillText(prize.emoji || '🎁', radius * 0.65, 12);
+                } else {
+                    // باقي الجوائز - عرض عادي
+                    ctx.fillStyle = '#F2F2F2';
+                    ctx.font = '600 16px Inter, system-ui, sans-serif';
+                    ctx.fillText(prize.name, radius * 0.65, 0);
+                }
+                
                 ctx.restore();
                 
             } catch (segmentError) {
