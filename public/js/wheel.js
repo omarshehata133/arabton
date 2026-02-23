@@ -147,14 +147,14 @@ class WheelOfFortune {
             const index = anim.index;
             const angle = this.rotation + (index * anglePerSegment) + (anglePerSegment / 2);
             
-            // Calculate position (on the left side of the segment, close to center)
-            const distance = this.radius * 0.48; // Position in the left-center area
+            // Calculate position (on the right side, towards the edge)
+            const distance = this.radius * 0.68; // Position towards the outer edge
             const x = this.centerX + Math.cos(angle) * distance;
             const y = this.centerY + Math.sin(angle) * distance;
             
             // Apply transform (centered on the calculated position, rotated to align with segment)
             const rotationDeg = (angle * 180 / Math.PI) + 90;
-            anim.element.style.transform = `translate(${x - 30}px, ${y - 30}px) rotate(${rotationDeg}deg)`;
+            anim.element.style.transform = `translate(${x - 22.5}px, ${y - 22.5}px) rotate(${rotationDeg}deg)`;
         });
     }
     
@@ -347,11 +347,11 @@ class WheelOfFortune {
                 const isNFT = prize.name === 'NFT';
                 
                 if (isNFT) {
-                    // NFT prizes - نص على اليمين فقط (الإيموجي في overlay)
-                    ctx.textAlign = 'right';
+                    // NFT prizes - نص في المنتصف-يسار قرب المركز
+                    ctx.textAlign = 'center';
                     ctx.fillStyle = '#FFD700'; // ذهبي
                     ctx.font = 'bold 18px Inter, system-ui, sans-serif';
-                    ctx.fillText('NFT', radius * 0.80, 0);
+                    ctx.fillText('NFT', radius * 0.45, 0);
                 } else {
                     // باقي الجوائز - عرض عادي
                     ctx.fillStyle = '#F2F2F2';
