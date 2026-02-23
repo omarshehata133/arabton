@@ -760,7 +760,10 @@ def init_database():
             is_active INTEGER DEFAULT 1,
             position INTEGER DEFAULT 0,
             added_at TEXT NOT NULL,
-            updated_at TEXT
+            updated_at TEXT,
+            quantity_available INTEGER DEFAULT -1,
+            quantity_won INTEGER DEFAULT 0,
+            animation_file TEXT
         )
     """)
     
@@ -785,23 +788,25 @@ def init_database():
     count = cursor.fetchone()[0]
     if count == 0:
         now = datetime.now().isoformat()
-        # الجوائز مطابقة لـ config.js: 0.25@79%, 0.5@5%, 1@1%, Better Luck@15%, باقي 0%
+        # الجوائز مطابقة لـ config.js: 0.25@74%, 0.5@5%, 1@1%, Better Luck@15%, Xmas Stocking@5%, باقي 0%
+        # quantity_available: -1 = غير محدود، >= 0 = عدد محدد
         default_prizes = [
-            ('0.25 TON', 0.25, 79, '#4CAF50', '🎯', 0),
-            ('0.5 TON', 0.5, 5, '#2196F3', '💎', 1),
-            ('1 TON', 1, 1, '#FF9800', '⭐', 2),
-            ('Better Luck', 0, 15, '#696969', '🍀', 3),
-            ('1.5 TON', 1.5, 0, '#9C27B0', '🌟', 4),
-            ('2 TON', 2, 0, '#E91E63', '✨', 5),
-            ('3 TON', 3, 0, '#FFD700', '💰', 6),
-            ('NFT', 0, 0, '#00FFFF', '🖼️', 7),
-            ('8 TON', 8, 0, '#FF0000', '🚀', 8)
+            ('0.25 TON', 0.25, 74, '#4CAF50', '🎯', 0, -1, None),
+            ('0.5 TON', 0.5, 5, '#2196F3', '💎', 1, -1, None),
+            ('1 TON', 1, 1, '#FF9800', '⭐', 2, -1, None),
+            ('Better Luck', 0, 15, '#696969', '🍀', 3, -1, None),
+            ('1.5 TON', 1.5, 0, '#9C27B0', '🌟', 4, -1, None),
+            ('2 TON', 2, 0, '#E91E63', '✨', 5, -1, None),
+            ('3 TON', 3, 0, '#FFD700', '💰', 6, -1, None),
+            ('Xmas Stocking', 0, 5, '#FF0000', '🎁', 7, 1, 'NFTXmasStocking.json'),
+            ('Whip cupcake', 0, 0, '#FF69B4', '🧁', 8, 1, 'NFTWhipcupcake.json'),
+            ('8 TON', 8, 0, '#FF0000', '🚀', 9, -1, None)
         ]
-        for name, value, prob, color, emoji, pos in default_prizes:
+        for name, value, prob, color, emoji, pos, qty, anim_file in default_prizes:
             cursor.execute("""
-                INSERT INTO wheel_prizes (name, value, probability, color, emoji, position, is_active, added_at)
-                VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-            """, (name, value, prob, color, emoji, pos, now))
+                INSERT INTO wheel_prizes (name, value, probability, color, emoji, position, is_active, added_at, quantity_available, quantity_won, animation_file)
+                VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?)
+            """, (name, value, prob, color, emoji, pos, now, qty, anim_file))
     
     # إضافة أعمدة التحقق للجداول القديمة
     try:
@@ -826,6 +831,22 @@ def init_database():
     
     try:
         cursor.execute("ALTER TABLE users ADD COLUMN ban_reason TEXT")
+    except sqlite3.OperationalError:
+        pass  # العمود موجود بالفعل
+    
+    # إضافة أعمدة الكميات والأنيميشن للجوائز
+    try:
+        cursor.execute("ALTER TABLE wheel_prizes ADD COLUMN quantity_available INTEGER DEFAULT -1")
+    except sqlite3.OperationalError:
+        pass  # العمود موجود بالفعل
+    
+    try:
+        cursor.execute("ALTER TABLE wheel_prizes ADD COLUMN quantity_won INTEGER DEFAULT 0")
+    except sqlite3.OperationalError:
+        pass  # العمود موجود بالفعل
+    
+    try:
+        cursor.execute("ALTER TABLE wheel_prizes ADD COLUMN animation_file TEXT")
     except sqlite3.OperationalError:
         pass  # العمود موجود بالفعل
     
@@ -1260,18 +1281,45 @@ def perform_spin(authenticated_user_id=None, is_admin=False):
         if user['available_spins'] <= 0:
             return jsonify({'success': False, 'error': 'ليس لديك لفات متاحة'}), 400
         
-        # Define prizes with probabilities (مطابقة لـ config.js)
-        prizes = [
-            {'name': '0.25 TON', 'amount': 0.25, 'probability': 79},
-            {'name': '0.5 TON', 'amount': 0.5, 'probability': 5},
-            {'name': '1 TON', 'amount': 1, 'probability': 1},
-            {'name': 'Better Luck', 'amount': 0, 'probability': 15},
-            {'name': '1.5 TON', 'amount': 1.5, 'probability': 0},
-            {'name': '2 TON', 'amount': 2, 'probability': 0},
-            {'name': '3 TON', 'amount': 3, 'probability': 0},
-            {'name': 'NFT', 'amount': 0, 'probability': 0},
-            {'name': '8 TON', 'amount': 8, 'probability': 0}
-        ]
+        # Get prizes from database
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        cursor.execute("""
+            SELECT id, name, value, probability, emoji, color, quantity_available, quantity_won, animation_file
+            FROM wheel_prizes 
+            WHERE is_active = 1 
+            ORDER BY position ASC
+        """)
+        
+        db_prizes = cursor.fetchall()
+        
+        # Build prizes list - filter out unavailable limited prizes
+        prizes = []
+        for row in db_prizes:
+            prize_dict = dict(row)
+            # Check if prize is available (unlimited or quantity still available)
+            qty_available = prize_dict.get('quantity_available', -1)
+            qty_won = prize_dict.get('quantity_won', 0)
+            
+            # Only include prizes with probability > 0 and available quantity
+            if prize_dict['probability'] > 0:
+                if qty_available == -1 or qty_won < qty_available:
+                    prizes.append({
+                        'id': prize_dict['id'],
+                        'name': prize_dict['name'],
+                        'amount': prize_dict['value'],
+                        'probability': prize_dict['probability'],
+                        'emoji': prize_dict.get('emoji', '🎁'),
+                        'color': prize_dict.get('color', '#808080'),
+                        'quantity_available': qty_available,
+                        'quantity_won': qty_won,
+                        'animation_file': prize_dict.get('animation_file')
+                    })
+        
+        if not prizes:
+            conn.close()
+            return jsonify({'success': False, 'error': 'لا توجد جوائز متاحة حالياً'}), 400
         
         # Select prize based on probability
         total_probability = sum(p['probability'] for p in prizes)
@@ -1289,16 +1337,21 @@ def perform_spin(authenticated_user_id=None, is_admin=False):
         now = datetime.now().isoformat()
         spin_hash = hashlib.sha256(f"{user_id}{now}{random.random()}".encode()).hexdigest()
         
-        # Update database
-        conn = get_db_connection()
-        cursor = conn.cursor()
-        
+        # Update database - already have connection open from earlier
         try:
             # Add spin record
             cursor.execute("""
                 INSERT INTO spins (user_id, prize_name, prize_amount, spin_time, spin_hash, ip_address)
                 VALUES (?, ?, ?, ?, ?, ?)
             """, (user_id, selected_prize['name'], selected_prize['amount'], now, spin_hash, request.remote_addr))
+            
+            # Update prize quantity if it's limited
+            if selected_prize.get('quantity_available', -1) >= 0:
+                cursor.execute("""
+                    UPDATE wheel_prizes 
+                    SET quantity_won = quantity_won + 1, updated_at = ?
+                    WHERE id = ?
+                """, (now, selected_prize['id']))
             
             # Update user
             new_balance = user['balance'] + selected_prize['amount']
@@ -2907,6 +2960,8 @@ def manage_prizes(authenticated_user_id, is_admin, admin_username=None, admin_us
             # 🎨 اللون والإيموجي اختياري الآن (قيم افتراضية)
             color = data.get('color', '#808080')  # رمادي افتراضي
             emoji = data.get('emoji', '🎁')  # 🎁 افتراضي
+            quantity_available = data.get('quantity_available', -1)  # -1 = غير محدود
+            animation_file = data.get('animation_file', None)
             
             if not all([name, value is not None, probability is not None]):
                 conn.close()
@@ -2916,15 +2971,15 @@ def manage_prizes(authenticated_user_id, is_admin, admin_username=None, admin_us
             
             try:
                 cursor.execute("""
-                    INSERT INTO wheel_prizes (name, value, probability, color, emoji, position, is_active, added_at)
-                    VALUES (?, ?, ?, ?, ?, ?, 1, ?)
-                """, (name, value, probability, color, emoji, position, now))
+                    INSERT INTO wheel_prizes (name, value, probability, color, emoji, position, is_active, added_at, quantity_available, quantity_won, animation_file)
+                    VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, 0, ?)
+                """, (name, value, probability, color, emoji, position, now, quantity_available, animation_file))
                 
                 conn.commit()
                 new_id = cursor.lastrowid
                 conn.close()
                 
-                print(f"✅ Prize added: ID {new_id}, Name: {name}, Value: {value}, Prob: {probability}%")
+                print(f"✅ Prize added: ID {new_id}, Name: {name}, Value: {value}, Prob: {probability}%, Qty: {quantity_available}")
                 return jsonify({'success': True, 'message': 'Prize added successfully', 'id': new_id})
                 
             except Exception as e:
@@ -2945,6 +3000,8 @@ def manage_prizes(authenticated_user_id, is_admin, admin_username=None, admin_us
             # 🎨 اللون والإيموجي اختياري الآن (قيم افتراضية)
             color = data.get('color', '#808080')
             emoji = data.get('emoji', '🎁')
+            quantity_available = data.get('quantity_available', -1)
+            animation_file = data.get('animation_file', None)
             
             if not prize_id:
                 conn.close()
@@ -2955,16 +3012,17 @@ def manage_prizes(authenticated_user_id, is_admin, admin_username=None, admin_us
             try:
                 cursor.execute("""
                     UPDATE wheel_prizes 
-                    SET name = ?, value = ?, probability = ?, color = ?, emoji = ?, position = ?, updated_at = ?
+                    SET name = ?, value = ?, probability = ?, color = ?, emoji = ?, position = ?, updated_at = ?, 
+                        quantity_available = ?, animation_file = ?
                     WHERE id = ? AND is_active = 1
-                """, (name, value, probability, color, emoji, position, now, prize_id))
+                """, (name, value, probability, color, emoji, position, now, quantity_available, animation_file, prize_id))
                 
                 rows_affected = cursor.rowcount
                 conn.commit()
                 conn.close()
                 
                 if rows_affected > 0:
-                    print(f"✅ Prize updated: ID {prize_id}, Name: {name}, Value: {value}, Prob: {probability}%")
+                    print(f"✅ Prize updated: ID {prize_id}, Name: {name}, Value: {value}, Prob: {probability}%, Qty: {quantity_available}")
                     return jsonify({'success': True, 'message': 'Prize updated successfully'})
                 else:
                     print(f"⚠️ No prize found with ID {prize_id}")
