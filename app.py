@@ -788,7 +788,7 @@ def init_database():
     count = cursor.fetchone()[0]
     if count == 0:
         now = datetime.now().isoformat()
-        # الجوائز مطابقة لـ config.js: 0.25@74%, 0.5@5%, 1@1%, Better Luck@15%, Xmas Stocking@5%, باقي 0%
+        # الجوائز مطابقة لـ config.js: 0.25@74%, 0.5@5%, 1@1%, Better Luck@15%, NFT@5%, باقي 0%
         # quantity_available: -1 = غير محدود، >= 0 = عدد محدد
         default_prizes = [
             ('0.25 TON', 0.25, 74, '#4CAF50', '🎯', 0, -1, None),
@@ -798,8 +798,8 @@ def init_database():
             ('1.5 TON', 1.5, 0, '#9C27B0', '🌟', 4, -1, None),
             ('2 TON', 2, 0, '#E91E63', '✨', 5, -1, None),
             ('3 TON', 3, 0, '#FFD700', '💰', 6, -1, None),
-            ('Xmas Stocking', 0, 5, '#FF0000', '🎁', 7, 1, 'NFTXmasStocking.json'),
-            ('Whip cupcake', 0, 0, '#FF69B4', '🧁', 8, 1, 'NFTWhipcupcake.json'),
+            ('NFT', 0, 5, '#FF0000', '🎄', 7, 1, 'NFTXmasStocking.json'),
+            ('NFT', 0, 0, '#FF69B4', '🧁', 8, 1, 'NFTWhipcupcake.json'),
             ('8 TON', 8, 0, '#FF0000', '🚀', 9, -1, None)
         ]
         for name, value, prob, color, emoji, pos, qty, anim_file in default_prizes:
@@ -847,6 +847,12 @@ def init_database():
     
     try:
         cursor.execute("ALTER TABLE wheel_prizes ADD COLUMN animation_file TEXT")
+    except sqlite3.OperationalError:
+        pass  # العمود موجود بالفعل
+    
+    # إضافة عمود اللغة للمستخدمين
+    try:
+        cursor.execute("ALTER TABLE users ADD COLUMN language TEXT DEFAULT 'ar'")
     except sqlite3.OperationalError:
         pass  # العمود موجود بالفعل
     

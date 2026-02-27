@@ -83,6 +83,14 @@ except ImportError:
     def title(i, t): return t
     QUICK = {}
 
+# استيراد نظام الترجمة الدولي
+try:
+    from bot_i18n import init_i18n
+    I18N_AVAILABLE = True
+except ImportError:
+    I18N_AVAILABLE = False
+    print("⚠️ bot_i18n not available - translations disabled")
+
 # ═══════════════════════════════════════════════════════════════
 # 🔧 CONFIGURATION - من ملف .env
 # ═══════════════════════════════════════════════════════════════
@@ -1557,6 +1565,31 @@ class TONWalletManager:
 # Initialize global objects
 db = DatabaseManager()
 
+# Initialize i18n system
+i18n = None
+if I18N_AVAILABLE:
+    try:
+        i18n = init_i18n(DATABASE_PATH)
+        print("✅ Bot i18n system initialized")
+    except Exception as e:
+        print(f"⚠️ Failed to initialize i18n: {e}")
+        I18N_AVAILABLE = False
+
+# Helper function for translations
+def t(key: str, user_id: int = None, **kwargs) -> str:
+    """ترجمة النص حسب لغة المستخدم"""
+    if I18N_AVAILABLE and i18n:
+        return i18n.t(key, user_id=user_id, **kwargs)
+    # Fallback to Arabic if i18n not available
+    from bot_i18n import TRANSLATIONS
+    text = TRANSLATIONS.get('ar', {}).get(key, key)
+    if kwargs:
+        try:
+            text = text.format(**kwargs)
+        except:
+            pass
+    return text
+
 # ═══════════════════════════════════════════════════════════════
 # 🔐 REFERRAL VALIDATION HELPERS
 # ═══════════════════════════════════════════════════════════════
@@ -1809,22 +1842,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             # ✅ لا نرسل fp_token في الرابط بعد الآن (أمان)
                             # التوكن سيُجلب من السيرفر باستخدام Telegram authentication
                             
+                            # إنشاء رابط البوت مع رابط الإحالة للمتابعة بعد التحقق
+                            if referrer_id:
+                                continue_bot_url = f"https://t.me/{BOT_USERNAME}?start=ref_{referrer_id}"
+                            else:
+                                continue_bot_url = f"https://t.me/{BOT_USERNAME}"
+                            
+                            # استخدام نظام الترجمة
                             verification_text = f"""
-🔐 <b>التحقق من الجهاز</b>
+{t('device_verification_title', user_id)}
 
-عزيزي <b>{full_name}</b>، مرحباً بك! 👋
+{t('dear_user', user_id, name=full_name)}
 
-للحفاظ على نزاهة النظام ومنع التلاعب، يجب التحقق من جهازك أولاً.
+{t('verification_required', user_id)}
 
-<b>⚡️ هذه الخطوة تتم مرة واحدة فقط!</b>
+{t('one_time_only', user_id)}
 
-<b>لماذا التحقق مهم؟</b>
-• ضمان عدالة الإحالات
-• منع الحسابات المزيفة والتلاعب
+{t('why_verification', user_id)}
 
-<b>✅ النظام لا يستخدم بياناتك الشخصية</b>
+{t('no_personal_data', user_id)}
 
-اضغط على الزر أدناه للبدء 👇
+{t('press_button_below', user_id)}
 """
                             
                             # محاولة إرسال رسالة مع WebApp أولاً
@@ -1834,13 +1872,13 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 
                                 keyboard = [[
                                     InlineKeyboardButton(
-                                        "🔐 تحقق من جهازك",
+                                        t('btn_verify_device', user_id),
                                         web_app=WebAppInfo(url=verify_url)
                                     )
                                 ],[
                                     InlineKeyboardButton(
-                                        "✅ أكملت التحقق - متابعة",
-                                        callback_data=f"device_verified_{user_id}"
+                                        t('btn_continue_to_bot', user_id),
+                                        url=continue_bot_url
                                     )
                                 ]]
                                 
@@ -1858,30 +1896,31 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 # إذا فشل WebApp، نرسل رسالة بسيطة مع رابط URL
                                 logger.warning(f"⚠️ WebApp failed for user {user_id}: {br}. Sending simple link.")
                                 
+                                # نص بسيط بدون HTML
                                 simple_text = f"""
-🔐 *التحقق من الجهاز*
+{t('device_verification_title', user_id).replace('<b>', '').replace('</b>', '')}
 
-عزيزي *{full_name}*، مرحباً بك! 👋
+{t('dear_user', user_id, name=full_name).replace('<b>', '').replace('</b>', '')}
 
-للحفاظ على نزاهة النظام، يجب التحقق من جهازك أولاً.
+{t('verification_required', user_id)}
 
-⚡️ *هذه الخطوة تتم مرة واحدة فقط!*
+{t('one_time_only', user_id).replace('<b>', '').replace('</b>', '')}
 
 اضغط على الرابط للتحقق:
 {MINI_APP_URL}/fp?user_id={user_id}
 
-بعد التحقق، ارجع واكتب /start مرة أخرى.
+{t('press_button_below', user_id)}
 """
                                 
                                 keyboard = [[
                                     InlineKeyboardButton(
-                                        "🔐 افتح صفحة التحقق",
+                                        t('btn_verify_device', user_id),
                                         url=f"{MINI_APP_URL}/fp?user_id={user_id}"
                                     )
                                 ],[
                                     InlineKeyboardButton(
-                                        "✅ أكملت التحقق - متابعة",
-                                        callback_data=f"device_verified_{user_id}"
+                                        t('btn_continue_to_bot', user_id),
+                                        url=continue_bot_url
                                     )
                                 ]]
                                 
