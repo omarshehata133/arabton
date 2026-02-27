@@ -192,7 +192,7 @@ async function initAdminPanel() {
     
     if (telegramUser) {
         console.log('✅ Admin authorized:', telegramUser.id);
-        showToast('✅ مرحباً في لوحة التحكم!', 'success');
+        showToast(typeof t === 'function' ? t('admin-welcome') : '✅ مرحباً في لوحة التحكم!', 'success');
     }
 }
 
@@ -225,12 +225,12 @@ async function loadDashboardData() {
         clearTimeout(loadingTimeout);
         hideLoading();
         DebugError.add('✅ Dashboard data loaded successfully', 'info');
-        showToast('✅ تم تحميل البيانات بنجاح', 'success');
+        showToast(typeof t === 'function' ? t('data-loaded-success') : '✅ تم تحميل البيانات بنجاح', 'success');
     } catch (error) {
         clearTimeout(loadingTimeout);
         hideLoading();
         DebugError.add('❌ Dashboard loading failed', 'error', error);
-        showToast('❌ خطأ في تحميل البيانات', 'error');
+        showToast(typeof t === 'function' ? t('data-load-failed') : '❌ خطأ في تحميل البيانات', 'error');
         console.error(error);
     }
 }
@@ -402,12 +402,13 @@ async function loadPrizes() {
             
             // Show success message only on explicit reload (not initial load)
             if (window._prizesLoadedOnce) {
-                showToast(`✅ تم تحميل ${adminData.prizes.length} جائزة`, 'success');
+                const msg = typeof t === 'function' ? t('prizes-loaded').replace('{count}', adminData.prizes.length) : `✅ تم تحميل ${adminData.prizes.length} جائزة`;
+                showToast(msg, 'success');
             }
             window._prizesLoadedOnce = true;
         } else {
             DebugError.add(`❌ Failed to load prizes: ${result.error || 'Unknown error'}`, 'error', result);
-            showToast('❌ فشل تحميل الجوائز', 'error');
+            showToast(typeof t === 'function' ? t('prizes-load-failed') : '❌ فشل تحميل الجوائز', 'error');
             
             // استخدام جوائز افتراضية
             adminData.prizes = CONFIG.WHEEL_PRIZES.map((prize, index) => ({
@@ -547,12 +548,12 @@ async function addPrize() {
     const quantity = parseInt(document.getElementById('prize-quantity').value);
     
     if (!name || isNaN(value) || isNaN(probability)) {
-        showToast('❌ يرجى ملء جميع الحقول بشكل صحيح', 'error');
+        showToast(typeof t === 'function' ? t('fill-all-fields') : '❌ يرجى ملء جميع الحقول بشكل صحيح', 'error');
         return;
     }
     
     if (probability < 0 || probability > 100) {
-        showToast('❌ النسبة يجب أن تكون بين 0 و 100', 'error');
+        showToast(typeof t === 'function' ? t('percentage-range') : '❌ النسبة يجب أن تكون بين 0 و 100', 'error');
         return;
     }
     
@@ -573,7 +574,7 @@ async function addPrize() {
         
         if (result.success) {
             DebugError.add('✅ Prize added successfully', 'info');
-            showToast('✅ تم إضافة الجائزة بنجاح', 'success');
+            showToast(typeof t === 'function' ? t('prize-added') : '✅ تم إضافة الجائزة بنجاح', 'success');
             
             // Clear form
             document.getElementById('prize-name').value = '';
@@ -588,13 +589,15 @@ async function addPrize() {
             await loadPrizes();
         } else {
             DebugError.add('❌ Failed to add prize', 'error', result);
-            showToast('❌ فشل إضافة الجائزة: ' + (result.error || 'خطأ غير معروف'), 'error');
+            const msg = typeof t === 'function' ? t('prize-add-failed').replace('{error}', result.error || 'خطأ غير معروف') : '❌ فشل إضافة الجائزة: ' + (result.error || 'خطأ غير معروف');
+            showToast(msg, 'error');
         }
     } catch (error) {
         hideLoading();
         console.error('❌ Error adding prize:', error);
         DebugError.add('❌ Exception in addPrize', 'error', error);
-        showToast('❌ خطأ في إضافة الجائزة: ' + error.message, 'error');
+        const msg = typeof t === 'function' ? t('prize-add-failed').replace('{error}', error.message) : '❌ خطأ في إضافة الجائزة: ' + error.message;
+        showToast(msg, 'error');
     }
 }
 

@@ -80,6 +80,15 @@ const translations = {
         'completed': 'مكتمل',
         'no-withdrawals-history': 'لا توجد سحوبات سابقة',
         'rejected': 'مرفوض',
+        'tasks-remaining-text': 'متبقي',
+        'tasks-remaining-suffix': 'للفة القادمة',
+        'vodafone-number': 'رقم فودافون كاش',
+        'ton-wallet-address': 'عنوان محفظة TON',
+        'ton-amount-label': 'المبلغ (TON)',
+        'withdrawal-request-button': 'طلب السحب',
+        'min-withdraw-note': 'الحد الأدنى:',
+        'withdrawal-history-title': 'سجل السحوبات',
+        'coming-soon': '🔜 قريباً',
         
         // Withdrawal Section
         'withdrawal-title': '💰 طلب سحب',
@@ -124,6 +133,37 @@ const translations = {
         'withdrawal-success': 'تم إرسال طلب السحب بنجاح',
         'task-completed-success': 'تم إكمال المهمة!',
         'join-channels-first': 'يجب الانضمام لجميع القنوات أولاً',
+        
+        // Toast Messages & Alerts
+        'referral-registered': 'تم تسجيل الإحالة بنجاح! 🎉',
+        'limited-mode-warning': '⚠️ تم التحميل في وضع محدود - تحقق من الاتصال',
+        'vodafone-coming-soon': '🔜 السحب عبر فودافون كاش سيكون متاحاً قريباً',
+        'link-copied': 'تم نسخ الرابط! 📋',
+        'task-completed': '✅ تم إكمال المهمة!',
+        'task-failed': '❌ فشل إكمال المهمة',
+        'error-occurred': 'حدث خطأ',
+        'processing-request': '⏳ جاري معالجة الطلب...',
+        'enter-valid-amount': 'أدخل مبلغاً صحيحاً',
+        'minimum-amount': 'الحد الأدنى {amount} TON',
+        'insufficient-balance-msg': 'رصيد غير كافٍ',
+        'invalid-wallet-address': 'عنوان محفظة غير صحيح',
+        'invalid-vodafone-number': 'رقم فودافون غير صحيح',
+        'withdrawal-sent': '✅ تم إرسال طلب السحب بنجاح!',
+        'withdrawal-failed': 'فشل طلب السحب',
+        'prizes-unavailable': '⚠️ جوائز العجلة غير متوفرة، سيتم استخدام الجوائز الافتراضية',
+        'wheel-creating': '🎯 بدء إنشاء العجلة...',
+        'reopen-from-bot': '❌ يرجى إعادة فتح التطبيق من البوت',
+        'session-expired-reopen': '⚠️ انتهت صلاحية الجلسة - أعد فتح التطبيق من البوت',
+        'admin-welcome': '✅ مرحباً في لوحة التحكم!',
+        'data-loaded-success': '✅ تم تحميل البيانات بنجاح',
+        'data-load-failed': '❌ خطأ في تحميل البيانات',
+        'prizes-loaded': '✅ تم تحميل {count} جائزة',
+        'prizes-load-failed': '❌ فشل تحميل الجوائز',
+        'fill-all-fields': '❌ يرجى ملء جميع الحقول بشكل صحيح',
+        'percentage-range': '❌ النسبة يجب أن تكون بين 0 و 100',
+        'prize-added': '✅ تم إضافة الجائزة بنجاح',
+        'prize-add-failed': '❌ فشل إضافة الجائزة: {error}',
+        'prize-not-found': '❌ الجائزة غير موجودة',
         
         // Footer
         'all-rights-reserved': 'جميع الحقوق محفوظة',
@@ -206,6 +246,15 @@ const translations = {
         'completed': 'Completed',
         'no-withdrawals-history': 'No withdrawal history',
         'rejected': 'Rejected',
+        'tasks-remaining-text': 'Remaining',
+        'tasks-remaining-suffix': 'for next spin',
+        'vodafone-number': 'Vodafone Cash Number',
+        'ton-wallet-address': 'TON Wallet Address',
+        'ton-amount-label': 'Amount (TON)',
+        'withdrawal-request-button': 'Request Withdrawal',
+        'min-withdraw-note': 'Minimum:',
+        'withdrawal-history-title': 'Withdrawal History',
+        'coming-soon': '🔜 Coming Soon',
         
         // Withdrawal Section
         'withdrawal-title': '💰 Request Withdrawal',
@@ -250,6 +299,37 @@ const translations = {
         'withdrawal-success': 'Withdrawal request sent successfully',
         'task-completed-success': 'Task completed!',
         'join-channels-first': 'You must join all channels first',
+        
+        // Toast Messages & Alerts
+        'referral-registered': 'Referral registered successfully! 🎉',
+        'limited-mode-warning': '⚠️ Loaded in limited mode - check your connection',
+        'vodafone-coming-soon': '🔜 Vodafone Cash withdrawal will be available soon',
+        'link-copied': 'Link copied! 📋',
+        'task-completed': '✅ Task completed!',
+        'task-failed': '❌ Task failed',
+        'error-occurred': 'An error occurred',
+        'processing-request': '⏳ Processing request...',
+        'enter-valid-amount': 'Enter a valid amount',
+        'minimum-amount': 'Minimum {amount} TON',
+        'insufficient-balance-msg': 'Insufficient balance',
+        'invalid-wallet-address': 'Invalid wallet address',
+        'invalid-vodafone-number': 'Invalid Vodafone number',
+        'withdrawal-sent': '✅ Withdrawal request sent successfully!',
+        'withdrawal-failed': 'Withdrawal request failed',
+        'prizes-unavailable': '⚠️ Wheel prizes unavailable, using default prizes',
+        'wheel-creating': '🎯 Creating wheel...',
+        'reopen-from-bot': '❌ Please reopen the app from the bot',
+        'session-expired-reopen': '⚠️ Session expired - reopen the app from the bot',
+        'admin-welcome': '✅ Welcome to admin panel!',
+        'data-loaded-success': '✅ Data loaded successfully',
+        'data-load-failed': '❌ Error loading data',
+        'prizes-loaded': '✅ Loaded {count} prizes',
+        'prizes-load-failed': '❌ Failed to load prizes',
+        'fill-all-fields': '❌ Please fill all fields correctly',
+        'percentage-range': '❌ Percentage must be between 0 and 100',
+        'prize-added': '✅ Prize added successfully',
+        'prize-add-failed': '❌ Failed to add prize: {error}',
+        'prize-not-found': '❌ Prize not found',
         
         // Footer
         'all-rights-reserved': 'All rights reserved',
@@ -332,6 +412,15 @@ const translations = {
         'completed': 'Выполнено',
         'no-withdrawals-history': 'Нет истории выводов',
         'rejected': 'Отклонено',
+        'tasks-remaining-text': 'Осталось',
+        'tasks-remaining-suffix': 'до следующего вращения',
+        'vodafone-number': 'Номер Vodafone Cash',
+        'ton-wallet-address': 'Адрес кошелька TON',
+        'ton-amount-label': 'Сумма (TON)',
+        'withdrawal-request-button': 'Запросить вывод',
+        'min-withdraw-note': 'Минимум:',
+        'withdrawal-history-title': 'История выводов',
+        'coming-soon': '🔜 Скоро',
         
         // Withdrawal Section
         'withdrawal-title': '💰 Запрос на вывод',
@@ -375,8 +464,37 @@ const translations = {
         'invalid-phone': 'Неверный номер телефона',
         'withdrawal-success': 'Запрос на вывод успешно отправлен',
         'task-completed-success': 'Задача выполнена!',
-        'join-channels-first': 'Сначала необходимо подписаться на все каналы',
-        
+        'join-channels-first': 'Сначала необходимо подписаться на все каналы',        
+        // Toast Messages & Alerts
+        'referral-registered': 'Реферал успешно зарегистрирован! 🎉',
+        'limited-mode-warning': '⚠️ Загружено в ограниченном режиме - проверьте соединение',
+        'vodafone-coming-soon': '🔜 Вывод через Vodafone Cash будет доступен скоро',
+        'link-copied': 'Ссылка скопирована! 📋',
+        'task-completed': '✅ Задача выполнена!',
+        'task-failed': '❌ Не удалось выполнить задачу',
+        'error-occurred': 'Произошла ошибка',
+        'processing-request': '⏳ Обработка запроса...',
+        'enter-valid-amount': 'Введите правильную сумму',
+        'minimum-amount': 'Минимум {amount} TON',
+        'insufficient-balance-msg': 'Недостаточный баланс',
+        'invalid-wallet-address': 'Неверный адрес кошелька',
+        'invalid-vodafone-number': 'Неверный номер Vodafone',
+        'withdrawal-sent': '✅ Запрос на вывод успешно отправлен!',
+        'withdrawal-failed': 'Не удалось отправить запрос на вывод',
+        'prizes-unavailable': '⚠️ Призы колеса недоступны, используются стандартные призы',
+        'wheel-creating': '🎯 Создание колеса...',
+        'reopen-from-bot': '❌ Пожалуйста, откройте приложение из бота',
+        'session-expired-reopen': '⚠️ Сессия истекла - откройте приложение из бота заново',
+        'admin-welcome': '✅ Добро пожаловать в панель администратора!',
+        'data-loaded-success': '✅ Данные успешно загружены',
+        'data-load-failed': '❌ Ошибка загрузки данных',
+        'prizes-loaded': '✅ Загружено призов: {count}',
+        'prizes-load-failed': '❌ Не удалось загрузить призы',
+        'fill-all-fields': '❌ Пожалуйста, заполните все поля правильно',
+        'percentage-range': '❌ Процент должен быть между 0 и 100',
+        'prize-added': '✅ Приз успешно добавлен',
+        'prize-add-failed': '❌ Не удалось добавить приз: {error}',
+        'prize-not-found': '❌ Приз не найден',        
         // Footer
         'all-rights-reserved': 'Все права защищены',
         'powered-by': 'При поддержке',
@@ -391,7 +509,8 @@ class LanguageManager {
     constructor() {
         // Get saved language or detect from Telegram
         this.currentLang = this.getSavedLanguage() || this.detectLanguage();
-        this.direction = this.currentLang === 'ar' ? 'rtl' : 'ltr';
+        // جميع اللغات LTR (من اليسار لليمين)
+        this.direction = 'ltr';
     }
     
     detectLanguage() {
@@ -420,15 +539,16 @@ class LanguageManager {
         }
         
         this.currentLang = lang;
-        this.direction = lang === 'ar' ? 'rtl' : 'ltr';
+        // جميع اللغات LTR
+        this.direction = 'ltr';
         
         // Save to localStorage
         localStorage.setItem('app-language', lang);
         
-        // Update HTML attributes
+        // Update HTML attributes - جميع اللغات LTR
         document.documentElement.lang = lang;
-        document.documentElement.dir = this.direction;
-        document.body.dir = this.direction;
+        document.documentElement.dir = 'ltr';
+        document.body.dir = 'ltr';
         
         // Update all translatable elements
         this.updatePageTranslations();

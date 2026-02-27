@@ -582,7 +582,7 @@ async function registerPendingReferral() {
         const result = await response.json();
         if (result.success) {
             console.log('✅ Referral registered successfully after channel verification');
-            showToast('تم تسجيل الإحالة بنجاح! 🎉', 'success');
+            showToast(t('referral-registered'), 'success');
             
             // حذف البيانات المؤقتة
             localStorage.removeItem('pendingReferral');
@@ -743,7 +743,7 @@ async function loadUserData() {
         updateUI();
         
         // إظهار رسالة للمستخدم
-        showToast('⚠️ تم التحميل في وضع محدود - تحقق من الاتصال', 'warn', 5000);
+        showToast(t('limited-mode-warning'), 'warn', 5000);
         // لا نرمي الخطأ لنسمح للتطبيق بالاستمرار
     }
 }
@@ -918,7 +918,7 @@ function initUI() {
             e.preventDefault();
             e.stopPropagation();
             console.log(' Vodafone Cash - Coming Soon');
-            showToast('🔜 السحب عبر فودافون كاش سيكون متاحاً قريباً', 'warning');
+            showToast(t('vodafone-coming-soon'), 'warning');
             // submitWithdrawal('vodafone'); // معطل مؤقتاً
         }, true);
     }
@@ -1080,7 +1080,7 @@ function copyReferralLink() {
         copyBtn.querySelector('.btn-icon').innerHTML = '<img src="/img/payment-success.svg" style="width: 16px; height: 16px;">';
         copyBtn.querySelector('.btn-text').textContent = 'تم النسخ!';
         
-        showToast('تم نسخ الرابط! 📋', 'success');
+        showToast(t('link-copied'), 'success');
         TelegramApp.hapticFeedback('success');
         
         // Reset button after 2 seconds
@@ -1219,15 +1219,15 @@ async function completeTask(taskId) {
         const response = await API.completeTask(TelegramApp.getUserId(), taskId);
         
         if (response.success) {
-            showToast('<img src="/img/payment-success.svg" style="width: 16px; height: 16px; vertical-align: middle;"> تم إكمال المهمة!', 'success');
+            showToast('<img src="/img/payment-success.svg" style="width: 16px; height: 16px; vertical-align: middle;"> ' + t('task-completed'), 'success');
             TelegramApp.hapticFeedback('success');
             await loadTasks();
         } else {
-            showToast('<img src="/img/payment-failure.svg" style="width: 16px; height: 16px; vertical-align: middle;"> فشل إكمال المهمة', 'error');
+            showToast('<img src="/img/payment-failure.svg" style="width: 16px; height: 16px; vertical-align: middle;"> ' + t('task-failed'), 'error');
         }
     } catch (error) {
         console.error('Error completing task:', error);
-        showToast('حدث خطأ', 'error');
+        showToast(t('error-occurred'), 'error');
     } finally {
         showLoading(false);
     }
@@ -1281,7 +1281,7 @@ async function submitWithdrawal(method) {
     // منع الضغطات المتعددة أثناء المعالجة
     if (isWithdrawalProcessing) {
         console.log('⏳ Already processing withdrawal');
-        showToast('⏳ جاري معالجة الطلب...', 'warning');
+        showToast(t('processing-request'), 'warning');
         return;
     }
     
@@ -1290,19 +1290,19 @@ async function submitWithdrawal(method) {
     
     // Validation
     if (isNaN(amount) || amount <= 0) {
-        showToast('أدخل مبلغاً صحيحاً', 'error');
+        showToast(t('enter-valid-amount'), 'error');
         addAnimation(amountInput, 'shake');
         return;
     }
     
     if (amount < CONFIG.MIN_WITHDRAWAL_AMOUNT) {
-        showToast(`الحد الأدنى ${CONFIG.MIN_WITHDRAWAL_AMOUNT} TON`, 'error');
+        showToast(t('minimum-amount').replace('{amount}', CONFIG.MIN_WITHDRAWAL_AMOUNT), 'error');
         addAnimation(amountInput, 'shake');
         return;
     }
     
     if (amount > UserState.get('balance')) {
-        showToast('رصيد غير كافٍ', 'error');
+        showToast(t('insufficient-balance-msg'), 'error');
         addAnimation(amountInput, 'shake');
         return;
     }
@@ -1317,7 +1317,7 @@ async function submitWithdrawal(method) {
         const wallet = sanitizeInput(walletInput.value);
         
         if (!isValidTonAddress(wallet)) {
-            showToast('عنوان محفظة غير صحيح', 'error');
+            showToast(t('invalid-wallet-address'), 'error');
             addAnimation(walletInput, 'shake');
             return;
         }
@@ -1326,7 +1326,7 @@ async function submitWithdrawal(method) {
         
     } else if (method === 'vodafone') {
         // السحب عبر فودافون كاش معطل مؤقتاً
-        showToast('🔜 السحب عبر فودافون كاش سيكون متاحاً قريباً', 'warning');
+        showToast(t('vodafone-coming-soon'), 'warning');
         return;
         
         // الكود التالي معطل حتى يتم تفعيل الخدمة
@@ -1384,7 +1384,7 @@ async function processWithdrawal(data) {
         const response = await API.requestWithdrawal(TelegramApp.getUserId(), data);
         
         if (response.success) {
-            showToast('<img src="/img/payment-success.svg" style="width: 16px; height: 16px; vertical-align: middle;"> تم إرسال طلب السحب بنجاح!', 'success');
+            showToast('<img src="/img/payment-success.svg" style="width: 16px; height: 16px; vertical-align: middle;"> ' + t('withdrawal-sent'), 'success');
             TelegramApp.hapticFeedback('success');
             
             // Update balance
@@ -1402,11 +1402,11 @@ async function processWithdrawal(data) {
             await loadWithdrawals();
             
         } else {
-            showToast(response.error || 'فشل طلب السحب', 'error');
+            showToast(response.error || t('withdrawal-failed'), 'error');
         }
     } catch (error) {
         console.error('Withdrawal error:', error);
-        showToast('حدث خطأ', 'error');
+        showToast(t('error-occurred'), 'error');
     } finally {
         showLoading(false);
     }
@@ -1618,7 +1618,7 @@ window.continueAppInitialization = async function() {
         try {
             // التأكد من وجود الجوائز
             if (!CONFIG.WHEEL_PRIZES || CONFIG.WHEEL_PRIZES.length === 0) {
-                showToast('⚠️ جوائز العجلة غير متوفرة، سيتم استخدام الجوائز الافتراضية', 'warning');
+                showToast(t('prizes-unavailable'), 'warning');
                 CONFIG.WHEEL_PRIZES = [
                     { name: '0.05 TON', amount: 0.05, probability: 45 },
                     { name: '0.1 TON', amount: 0.1, probability: 30 },
@@ -1635,7 +1635,7 @@ window.continueAppInitialization = async function() {
                 throw new Error('عنصر العجلة غير موجود في الصفحة');
             }
             
-            showToast('🎯 بدء إنشاء العجلة...', 'info');
+            showToast(t('wheel-creating'), 'info');
             wheel = new WheelOfFortune('wheel-canvas', CONFIG.WHEEL_PRIZES);
             
             if (!wheel || !wheel.canvas) {

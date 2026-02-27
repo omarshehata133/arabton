@@ -97,7 +97,9 @@ const API = {
         // 🚨 تحذير إذا كان initData فاضي
         if (!initData) {
             console.error('❌ CRITICAL: No initData available for authentication!');
-            if (typeof showToast !== 'undefined') {
+            if (typeof showToast !== 'undefined' && typeof t === 'function') {
+                showToast(t('reopen-from-bot'), 'error');
+            } else if (typeof showToast !== 'undefined') {
                 showToast('❌ يرجى إعادة فتح التطبيق من البوت', 'error');
             }
         }
@@ -200,7 +202,11 @@ const API = {
                                     window.clearAdminToken();
                                 }
                                 if (typeof showToast !== 'undefined') {
-                                    showToast('⚠️ انتهت صلاحية الجلسة - يرجى تسجيل الدخول مرة أخرى', 'error');
+                                    if (typeof t === 'function') {
+                                        showToast(t('session-expired-reopen'), 'error');
+                                    } else {
+                                        showToast('⚠️ انتهت صلاحية الجلسة - يرجى تسجيل الدخول مرة أخرى', 'error');
+                                    }
                                 }
                                 // إعادة تحميل الصفحة لإظهار Login screen
                                 setTimeout(() => location.reload(), 2000);
@@ -212,7 +218,11 @@ const API = {
                         
                         console.error('❌ 401 Unauthorized - initData غير صالح أو منتهي');
                         if (typeof showToast !== 'undefined') {
-                            showToast('⚠️ انتهت صلاحية الجلسة - أعد فتح التطبيق من البوت', 'error');
+                            if (typeof t === 'function') {
+                                showToast(t('session-expired-reopen'), 'error');
+                            } else {
+                                showToast('⚠️ انتهت صلاحية الجلسة - أعد فتح التطبيق من البوت', 'error');
+                            }
                         }
                         throw new Error('Unauthorized: Please reopen app from Telegram bot');
                     }
