@@ -262,8 +262,8 @@
 
             <div class="tasks-progress">
                 <div class="progress-info">
-                    <span>📊 تقدمك: <strong id="completed-tasks-count">0</strong> / <strong id="total-tasks-count">0</strong></span>
-                    <span style="margin-right: 16px; color: #ffd436;">متبقي <strong id="tasks-remaining">5</strong> / 5 للفة القادمة</span>
+                    <span><span data-i18n="tasks-progress">📊 تقدمك</span>: <strong id="completed-tasks-count">0</strong> / <strong id="total-tasks-count">0</strong></span>
+                    <span style="margin-right: 16px; color: #ffd436;"><span data-i18n="tasks-remaining-text">متبقي</span> <strong id="tasks-remaining">5</strong> / 5 <span data-i18n="tasks-remaining-suffix">للفة القادمة</span></span>
                 </div>
                 <div class="progress-bar">
                     <div class="progress-fill" id="tasks-progress-fill"></div>
@@ -313,39 +313,39 @@
                     </button>
                     <button class="method-tab" data-method="vodafone" disabled style="opacity: 0.5; cursor: not-allowed;">
                         <span class="tab-icon"><img src="img/vodafone.png" alt="Vodafone" class="ton-icon-tab"></span>
-                        <span>Vodafone Cash</span>
-                        <span style="color: #ff9500; font-size: 11px; margin-right: 5px;">🔜 قريباً</span>
+                        <span data-i18n="vodafone-cash">Vodafone Cash</span>
+                        <span style="color: #ff9500; font-size: 11px; margin-right: 5px;" data-i18n="coming-soon">🔜 قريباً</span>
                     </button>
                 </div>
 
                 <!-- نموذج السحب TON -->
                 <div id="withdraw-form-ton" class="withdraw-form active">
                     <div class="form-group">
-                        <label><img src="img/Ton.png" alt="TON" class="ton-icon"> عنوان محفظة TON</label>
-                        <input type="text" id="ton-wallet-input" placeholder="UQxxxxxxxxxxxxxxxx">
+                        <label><img src="img/Ton.png" alt="TON" class="ton-icon"> <span data-i18n="ton-wallet-address">عنوان محفظة TON</span></label>
+                        <input type="text" id="ton-wallet-input" data-i18n="ton-wallet-address" placeholder="UQxxxxxxxxxxxxxxxx">
                     </div>
                     <div class="form-group">
-                        <label><img src="img/Ton.png" alt="TON" class="ton-icon"> المبلغ (TON)</label>
+                        <label><img src="img/Ton.png" alt="TON" class="ton-icon"> <span data-i18n="ton-amount-label">المبلغ (TON)</span></label>
                         <div class="amount-input-group">
                             <input type="number" id="ton-amount-input" placeholder="0.00" step="0.01" min="0.1">
                             <button id="max-btn-ton" class="max-btn">MAX</button>
                         </div>
-                        <span class="min-withdraw-note">الحد الأدنى: 0.1 <img src="img/Ton.png" alt="TON" class="ton-icon-small"></span>
+                        <span class="min-withdraw-note"><span data-i18n="min-withdraw-note">الحد الأدنى:</span> 0.1 <img src="img/Ton.png" alt="TON" class="ton-icon-small"></span>
                     </div>
                     <button id="withdraw-btn-ton" class="withdraw-btn">
                         <lottie-player src="./img/withdraw.json" background="transparent" speed="1" 
                             style="width: 24px; height: 24px; display: inline-block; vertical-align: middle;" 
                             loop autoplay>
                         </lottie-player>
-                        طلب السحب
+                        <span data-i18n="withdrawal-request-button">طلب السحب</span>
                     </button>
                 </div>
 
                 <!-- نموذج السحب Vodafone -->
                 <div id="withdraw-form-vodafone" class="withdraw-form">
                     <div class="form-group">
-                        <label><img src="img/vodafone.png" alt="Vodafone" class="ton-icon"> رقم فودافون كاش</label>
-                        <input type="tel" id="vodafone-number-input" placeholder="01xxxxxxxxx">
+                        <label><img src="img/vodafone.png" alt="Vodafone" class="ton-icon"> <span data-i18n="vodafone-number">رقم فودافون كاش</span></label>
+                        <input type="tel" id="vodafone-number-input" data-i18n="vodafone-number" placeholder="01xxxxxxxxx">
                     </div>
                     <div class="form-group">
                         <label><img src="img/Ton.png" alt="TON" class="ton-icon"> المبلغ (TON)</label>
@@ -369,7 +369,7 @@
             <div class="withdrawal-history">
                 <h3>
                     <img src="img/profile/orders_history.svg" alt="History" style="width: 24px; height: 24px; display: inline-block; vertical-align: middle;">
-                    سجل السحوبات
+                    <span data-i18n="withdrawal-history-title">سجل السحوبات</span>
                 </h3>
                 <div id="withdrawal-history-list" class="history-list">
                     <!-- سيتم ملؤها ديناميكياً -->
