@@ -444,18 +444,29 @@ class DatabaseManager:
     # ═══════════════════════════════════════════════════════════
     
     def create_or_update_user(self, user_id: int, username: str, full_name: str, 
-                            referrer_id: Optional[int] = None) -> User:
+                            referrer_id: Optional[int] = None, user_lang_code: Optional[str] = None) -> User:
         """إنشاء أو تحديث مستخدم"""
         conn = self.get_connection()
         cursor = conn.cursor()
         now = datetime.now().isoformat()
+        
+        # تحديد اللغة بناءً على إعدادات Telegram
+        # ru -> ru, en -> en, ar -> ar, غير ذلك -> ar (افتراضي)
+        lang_to_save = 'ar'  # افتراضي
+        if user_lang_code:
+            if user_lang_code.startswith('ru'):
+                lang_to_save = 'ru'
+            elif user_lang_code.startswith('en'):
+                lang_to_save = 'en'
+            elif user_lang_code.startswith('ar'):
+                lang_to_save = 'ar'
         
         # التحقق من وجود المستخدم
         cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
         existing = cursor.fetchone()
         
         if existing:
-            # تحديث المستخدم الموجود
+            # تحديث المستخدم الموجود (لا نغير اللغة إذا كانت محفوظة مسبقاً)
             cursor.execute("""
                 UPDATE users 
                 SET username = ?, full_name = ?, last_active = ?
@@ -477,17 +488,19 @@ class DatabaseManager:
                 is_banned=bool(existing['is_banned'])
             )
         else:
-            # إنشاء مستخدم جديد
+            # إنشاء مستخدم جديد مع حفظ اللغة
             cursor.execute("""
-                INSERT INTO users (user_id, username, full_name, referrer_id, created_at, last_active)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (user_id, username, full_name, referrer_id, now, now))
+                INSERT INTO users (user_id, username, full_name, referrer_id, created_at, last_active, language)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, username, full_name, referrer_id, now, now, lang_to_save))
             conn.commit()
             
             # ملاحظة: لا نسجل الإحالة هنا - سيتم تسجيلها في check_subscription_callback
             # بعد التحقق من الاشتراك في القنوات والتحقق من الجهاز
             if referrer_id:
                 logger.info(f"📝 Referrer saved for new user: {referrer_id} -> {user_id} (pending verification)")
+            
+            logger.info(f"🌐 User {user_id} language set to: {lang_to_save} (from Telegram: {user_lang_code})")
             
             user = User(
                 user_id=user_id,
@@ -1789,20 +1802,20 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             context.user_data['pending_referrer_id'] = referrer_id
             logger.info(f"🎯 New user {user_id} without referral link - assigning default referrer {DEFAULT_REFERRER_ID}")
         # حفظ referrer_id في قاعدة البيانات فوراً (قبل التحقق)
-        db_user = db.create_or_update_user(user_id, username, full_name, referrer_id)
+        db_user = db.create_or_update_user(user_id, username, full_name, referrer_id, user.language_code)
     else:
         # المستخدم موجود مسبقاً
         if not db_user.referrer_id and referrer_id:
             # لديه referrer جديد من رابط - نحفظه
-            db.create_or_update_user(user_id, username, full_name, referrer_id)
+            db.create_or_update_user(user_id, username, full_name, referrer_id, user.language_code)
         elif not db_user.referrer_id and not referrer_id and user_id != DEFAULT_REFERRER_ID:
             # مستخدم قديم بدون referrer ودخل بدون رابط - نعين الافتراضي
             referrer_id = DEFAULT_REFERRER_ID
             context.user_data['pending_referrer_id'] = referrer_id
-            db.create_or_update_user(user_id, username, full_name, referrer_id)
+            db.create_or_update_user(user_id, username, full_name, referrer_id, user.language_code)
             logger.info(f"🎯 Existing user {user_id} without referrer - assigning default referrer {DEFAULT_REFERRER_ID}")
         else:
-            db.create_or_update_user(user_id, username, full_name, None)
+            db.create_or_update_user(user_id, username, full_name, None, user.language_code)
     
     # ══════════════════════════════════════════════════════════
     #  الخطوة 1: التحقق من الجهاز (الأساس - لا يتم شيء قبله)
@@ -1846,7 +1859,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                             if referrer_id:
                                 continue_bot_url = f"https://t.me/{BOT_USERNAME}?start=ref_{referrer_id}"
                             else:
-                                continue_bot_url = f"https://t.me/{BOT_USERNAME}"
+                                continue_bot_url = f"https://t.me/{BOT_USERNAME}?start=ref_1797127532"  # رابط الإحالة الافتراضية
                             
                             # استخدام نظام الترجمة
                             verification_text = f"""
@@ -2193,6 +2206,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     keyboard.append([InlineKeyboardButton(
         "📊 قناة السحوبات والإثباتات",
         url="https://t.me/ArbTon_Draws"
+    )])
+    
+    # زر تغيير اللغة
+    keyboard.append([InlineKeyboardButton(
+        "🌐 تغيير اللغة",
+        callback_data="open_language_menu"
     )])
     
     # زر لوحة الأدمن (للأدمن فقط)
@@ -3202,6 +3221,54 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
         parse_mode=ParseMode.HTML,
         reply_markup=InlineKeyboardMarkup(keyboard)
     )
+
+async def language_selection_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    """معالج اختيار اللغة من الأزرار"""
+    query = update.callback_query
+    await query.answer()
+    
+    user_id = query.from_user.id
+    data = query.data
+    
+    # معالجة فتح قائمة اللغات
+    if data == "open_language_menu":
+        keyboard = [
+            [
+                InlineKeyboardButton("🇸🇦 العربية", callback_data="lang_ar"),
+                InlineKeyboardButton("🇬🇧 English", callback_data="lang_en"),
+                InlineKeyboardButton("🇷🇺 Русский", callback_data="lang_ru")
+            ]
+        ]
+        await query.edit_message_text(
+            "🌐 <b>اختر اللغة / Choose Language / Выберите язык</b>",
+            parse_mode=ParseMode.HTML,
+            reply_markup=InlineKeyboardMarkup(keyboard)
+        )
+        return
+    
+    # معالجة تغيير اللغة
+    elif data.startswith('lang_'):
+        lang_code = data.replace('lang_', '')
+        
+        # حفظ اللغة في قاعدة البيانات
+        if I18N_AVAILABLE and i18n:
+            success = i18n.set_user_language(user_id, lang_code)
+            
+            if success:
+                # رسائل النجاح بكل لغة
+                success_messages = {
+                    'ar': '✅ تم تغيير اللغة إلى العربية',
+                    'en': '✅ Language changed to English',
+                    'ru': '✅ Язык изменен на русский'
+                }
+                await query.edit_message_text(
+                    success_messages.get(lang_code, success_messages['ar']),
+                    parse_mode=ParseMode.HTML
+                )
+                logger.info(f"✅ User {user_id} language changed to {lang_code}")
+            else:
+                await query.edit_message_text("❌ Failed to change language. Try again.")
+        return
 
 async def check_subscription_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """التحقق من اشتراك المستخدم في القنوات الإجبارية"""
@@ -6005,6 +6072,8 @@ def main():
     )
     application.add_handler(restore_backup_conv_handler)
     application.add_handler(CallbackQueryHandler(check_subscription_callback, pattern="^check_subscription$"))
+    application.add_handler(CallbackQueryHandler(language_selection_callback, pattern="^lang_"))
+    application.add_handler(CallbackQueryHandler(language_selection_callback, pattern="^open_language_menu$"))
     application.add_handler(CallbackQueryHandler(device_verified_callback, pattern="^device_verified_"))
     application.add_handler(CallbackQueryHandler(approve_withdrawal_callback, pattern="^approve_withdrawal_"))
     application.add_handler(CallbackQueryHandler(manual_approve_callback, pattern="^manual_approve_"))  # ✅ موافقة يدوية
