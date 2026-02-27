@@ -359,7 +359,7 @@ class BotI18n:
             conn = sqlite3.connect(self.db_path)
             cursor = conn.cursor()
             
-            cursor.execute("SELECT language FROM users WHERE id = ?", (user_id,))
+            cursor.execute("SELECT language FROM users WHERE user_id = ?", (user_id,))
             result = cursor.fetchone()
             
             conn.close()
@@ -380,7 +380,7 @@ class BotI18n:
             cursor.execute("""
                 UPDATE users 
                 SET language = ? 
-                WHERE id = ?
+                WHERE user_id = ?
             """, (lang_code, user_id))
             
             conn.commit()
