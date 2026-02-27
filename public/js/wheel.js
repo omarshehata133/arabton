@@ -704,16 +704,19 @@ class WheelOfFortune {
         
         if (prizeAmount > 0) {
             // رسالة ديناميكية بناءً على المبلغ
-            resultText.textContent = '🎉 مبروك!';
+            const congratsText = typeof t === 'function' ? t('you-won-prize').replace('{prize}', '') : '🎉 مبروك!';
+            resultText.textContent = congratsText;
             // إضافة أيقونة TON
             const tonIcon = '<img src="img/Ton.png" alt="TON" class="ton-icon">';
-            resultAmount.innerHTML = `ربحت ${prizeAmount} ${tonIcon}`;
+            const wonText = typeof t === 'function' ? t('you-won-amount').replace('{amount}', `${prizeAmount} ${tonIcon}`) : `ربحت ${prizeAmount} ${tonIcon}`;
+            resultAmount.innerHTML = wonText;
             resultDiv.style.borderColor = '#3fb950';
             
             DebugError.add(`✅ Prize won: ${prizeAmount} TON`, 'info');
         } else {
-            resultText.textContent = '😢 حظ أوفر المرة القادمة!';
-            resultAmount.textContent = prize.name || 'حظ أوفر';
+            const betterLuckText = typeof t === 'function' ? t('better-luck') : '😢 حظ أوفر المرة القادمة!';
+            resultText.textContent = betterLuckText;
+            resultAmount.textContent = prize.name || (typeof t === 'function' ? t('better-luck').replace(' في المرة القادمة!', '').replace('😢 ', '') : 'حظ أوفر');
             resultDiv.style.borderColor = '#808080';
             
             DebugError.add('No prize won (حظ أوفر)', 'info');

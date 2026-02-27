@@ -943,7 +943,7 @@ function renderWithdrawals(status = 'pending') {
                     <button class="reject-btn" onclick="rejectWithdrawal(${w.id})"><img src="/img/payment-failure.svg" alt="✗" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> رفض</button>
                 </div>
             ` : `
-                <span class="status-badge ${w.status}">${w.status === 'completed' ? '<img src="/img/payment-success.svg" alt="✓" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> مقبول' : '<img src="/img/payment-failure.svg" alt="✗" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> مرفوض'}</span>
+                <span class="status-badge ${w.status}">${w.status === 'completed' ? '<img src="/img/payment-success.svg" alt="✓" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> ' + (typeof t === 'function' ? t('accepted') : 'مقبول') : '<img src="/img/payment-failure.svg" alt="✗" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> ' + (typeof t === 'function' ? t('rejected') : 'مرفوض')}</span>
             `}
         </div>
         `;
@@ -1052,10 +1052,11 @@ function renderAdminTasks() {
     const activeTasks = adminData.tasks.filter(task => task.is_active !== false);
     
     if (!activeTasks || activeTasks.length === 0) {
+        const noTasksText = typeof t === 'function' ? t('no-tasks-now') : 'لا توجد مهام حالياً';
         tasksGrid.innerHTML = `
             <div style="text-align: center; padding: 40px; color: #8b95a1;">
                 <p style="font-size: 48px; margin-bottom: 16px;">📝</p>
-                <p style="font-size: 18px;">لا توجد مهام حالياً</p>
+                <p style="font-size: 18px;">${noTasksText}</p>
                 <p style="font-size: 14px; margin-top: 8px;">ابدأ بإضافة مهمة جديدة</p>
             </div>
         `;

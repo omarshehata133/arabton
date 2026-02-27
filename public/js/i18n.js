@@ -39,7 +39,11 @@ const translations = {
         // Spin Results
         'congratulations': 'تهانينا!',
         'won': 'لقد ربحت',
+        // Spin Result Messages
+        'you-won-prize': '🎉 مبروك! كسبت جائزة: {prize}',
+        'you-won-amount': 'ربحت {amount}',
         'better-luck': 'حظ أوفر في المرة القادمة!',
+        'accepted': 'مقبول',
         'try-again': 'حاول مرة أخرى',
         'close': 'إغلاق',
         
@@ -205,7 +209,11 @@ const translations = {
         // Spin Results
         'congratulations': 'Congratulations!',
         'won': 'You won',
+        // Spin Result Messages
+        'you-won-prize': '🎉 Congratulations! You won: {prize}',
+        'you-won-amount': 'You won {amount}',
         'better-luck': 'Better luck next time!',
+        'accepted': 'Accepted',
         'try-again': 'Try again',
         'close': 'Close',
         
@@ -371,7 +379,11 @@ const translations = {
         // Spin Results
         'congratulations': 'Поздравляем!',
         'won': 'Вы выиграли',
+        // Spin Result Messages
+        'you-won-prize': '🎉 Поздравляем! Вы выиграли: {prize}',
+        'you-won-amount': 'Вы выиграли {amount}',
         'better-luck': 'Удачи в следующий раз!',
+        'accepted': 'Принято',
         'try-again': 'Попробовать снова',
         'close': 'Закрыть',
         

@@ -1136,7 +1136,7 @@ function displayTasks(tasks, completedTaskIds) {
     tasksList.innerHTML = '';
     
     if (tasks.length === 0) {
-        tasksList.innerHTML = '<p style="text-align: center; color: var(--text-secondary); padding: 20px;">لا توجد مهام حالياً. تحقق لاحقاً!</p>';
+        tasksList.innerHTML = `<p style="text-align: center; color: var(--text-secondary); padding: 20px;">${typeof t === 'function' ? t('no-tasks-now') : 'لا توجد مهام حالياً. تحقق لاحقاً!'}</p>`;
         return;
     }
     
@@ -1168,7 +1168,8 @@ function displayTasks(tasks, completedTaskIds) {
         const button = document.createElement('button');
         button.className = 'task-action';
         if (isCompleted) {
-            button.innerHTML = '<img src="/img/payment-success.svg" alt="✓" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> مكتمل';
+            const completedText = typeof t === 'function' ? t('completed') : 'مكتمل';
+            button.innerHTML = `<img src="/img/payment-success.svg" alt="✓" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> ${completedText}`;
         } else {
             button.textContent = '▶️ ابدأ';
         }
@@ -1468,9 +1469,11 @@ function displayWithdrawals(withdrawals) {
         if (w.status === 'pending') {
             status.textContent = '⏳ معلق';
         } else if (w.status === 'completed') {
-            status.innerHTML = '<img src="/img/payment-success.svg" alt="✓" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> مكتمل';
+            const completedText = typeof t === 'function' ? t('completed') : 'مكتمل';
+            status.innerHTML = `<img src="/img/payment-success.svg" alt="✓" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> ${completedText}`;
         } else {
-            status.innerHTML = '<img src="/img/payment-failure.svg" alt="✗" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> مرفوض';
+            const rejectedText = typeof t === 'function' ? t('rejected') : 'مرفوض';
+            status.innerHTML = `<img src="/img/payment-failure.svg" alt="✗" style="width: 14px; height: 14px; vertical-align: middle; margin-left: 2px;"> ${rejectedText}`;
         }
         
         header.appendChild(amount);
