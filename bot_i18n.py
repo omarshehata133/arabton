@@ -121,6 +121,23 @@ TRANSLATIONS = {
         # Errors
         'error_occurred': '❌ حدث خطأ. حاول مرة أخرى.',
         'user_not_found': '❌ لم يتم العثور على حسابك. استخدم /start أولاً.',
+        
+        # Welcome Message (Main)
+        'welcome_title': '🎁 <b>مرحباً بك في Arab Ton Gifts!</b> 🎁',
+        'welcome_intro': '<b>{name}</b>، أهلاً بك في أفضل بوت للأرباح والهدايا! 🌟',
+        'welcome_your_balance': '💰 <b>رصيدك الحالي:</b> {balance:.2f} TON',
+        'welcome_your_spins': '🎰 <b>لفاتك المتاحة:</b> {spins}',
+        'welcome_your_referrals': '👥 <b>إحالاتك:</b> {referrals}',
+        'welcome_how_to_earn': '<b>🎯 كيف تربح؟</b>',
+        'welcome_invite_friends': '• قم بدعوة أصدقائك (كل {refs} إحالات = لفة مجانية)',
+        'welcome_complete_tasks': '• أكمل المهام اليومية',
+        'welcome_play_wheel': '• إلعب عجلة الحظ واربح TON!',
+        'welcome_withdraw': '• إسحب أرباحك مباشرة إلى محفظتك',
+        'welcome_start_now': '<b>🚀 ابدأ الآن واستمتع بالأرباح!</b>',
+        'btn_open_mini_app': '🎰 افتح Arab Ton Gifts',
+        'btn_share_ref_link': '📤 مشاركة رابط الدعوة',
+        'btn_withdrawals_channel': '📊 قناة السحوبات والإثباتات',
+        'share_ref_text': '🎁 انضم لـ Arab Ton Gifts واربح TON مجاناً!\n\n{link}',
     },
     
     # ══════════════ ENGLISH (en) ══════════════
@@ -230,6 +247,23 @@ TRANSLATIONS = {
         # Errors
         'error_occurred': '❌ An error occurred. Try again.',
         'user_not_found': '❌ Your account was not found. Use /start first.',
+        
+        # Welcome Message (Main)
+        'welcome_title': '🎁 <b>Welcome to Arab Ton Gifts!</b> 🎁',
+        'welcome_intro': '<b>{name}</b>, welcome to the best bot for earnings and gifts! 🌟',
+        'welcome_your_balance': '💰 <b>Your Current Balance:</b> {balance:.2f} TON',
+        'welcome_your_spins': '🎰 <b>Your Available Spins:</b> {spins}',
+        'welcome_your_referrals': '👥 <b>Your Referrals:</b> {referrals}',
+        'welcome_how_to_earn': '<b>🎯 How to Earn?</b>',
+        'welcome_invite_friends': '• Invite your friends ({refs} referrals = 1 free spin)',
+        'welcome_complete_tasks': '• Complete daily tasks',
+        'welcome_play_wheel': '• Play the lucky wheel and win TON!',
+        'welcome_withdraw': '• Withdraw your earnings directly to your wallet',
+        'welcome_start_now': '<b>🚀 Start now and enjoy the profits!</b>',
+        'btn_open_mini_app': '🎰 Open Arab Ton Gifts',
+        'btn_share_ref_link': '📤 Share Referral Link',
+        'btn_withdrawals_channel': '📊 Withdrawals & Proofs Channel',
+        'share_ref_text': '🎁 Join Arab Ton Gifts and earn TON for free!\n\n{link}',
     },
     
     # ══════════════ RUSSIAN (ru) ══════════════
@@ -337,9 +371,26 @@ TRANSLATIONS = {
         'channels_verified': '✅ Отлично! Вы подписаны на все каналы',
         
         # Errors
-        'error_occurred': '❌ Произошла ошибка. Попробуйте еще раз.',
+        'error_occurred': '❌ Произошла ошибка. Попробуйте снова.',
         'user_not_found': '❌ Ваш аккаунт не найден. Сначала используйте /start.',
-    }
+        
+        # Welcome Message (Main)
+        'welcome_title': '🎁 <b>Добро пожаловать в Arab Ton Gifts!</b> 🎁',
+        'welcome_intro': '<b>{name}</b>, добро пожаловать в лучшего бота для заработка и подарков! 🌟',
+        'welcome_your_balance': '💰 <b>Ваш текущий баланс:</b> {balance:.2f} TON',
+        'welcome_your_spins': '🎰 <b>Ваши доступные вращения:</b> {spins}',
+        'welcome_your_referrals': '👥 <b>Ваши рефералы:</b> {referrals}',
+        'welcome_how_to_earn': '<b>🎯 Как заработать?</b>',
+        'welcome_invite_friends': '• Приглашайте друзей ({refs} рефералов = 1 бесплатное вращение)',
+        'welcome_complete_tasks': '• Выполняйте ежедневные задания',
+        'welcome_play_wheel': '• Крутите колесо удачи и выигрывайте TON!',
+        'welcome_withdraw': '• Выводите заработок прямо на свой кошелек',
+        'welcome_start_now': '<b>🚀 Начните сейчас и наслаждайтесь прибылью!</b>',
+        'btn_open_mini_app': '🎰 Открыть Arab Ton Gifts',
+        'btn_share_ref_link': '📤 Поделиться реферальной ссылкой',
+        'btn_withdrawals_channel': '📊 Канал выводов и доказательств',
+        'share_ref_text': '🎁 Присоединяйтесь к Arab Ton Gifts и зарабатывайте TON бесплатно!\n\n{link}',
+    },
 }
 
 # ═══════════════════════════════════════════════════════════

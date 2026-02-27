@@ -3174,40 +3174,46 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
     if not db_user:
         db_user = db.create_or_update_user(user_id, username, full_name)
     
-    welcome_text = f"""
-<tg-emoji emoji-id='5202158689217187713'>💎</tg-emoji> <b>مرحباً بك في Arab Ton Gifts!</b> <tg-emoji emoji-id='5472096095280569232'>🎁</tg-emoji>
+    # رسالة الترحيب (مع الترجمة)
+    welcome_text = f"""{t('welcome_title', user_id)}
 
-<b>{full_name}</b>، أهلاً بك في أفضل بوت للأرباح والهدايا! <tg-emoji emoji-id='5897920748101571572'>🌟</tg-emoji>
+{t('welcome_intro', user_id, name=full_name)}
 
-<tg-emoji emoji-id='5278467510604160626'>💰</tg-emoji> <b>رصيدك الحالي:</b> {db_user.balance:.2f} TON
-<tg-emoji emoji-id='5202046839678866384'>🎰</tg-emoji> <b>لفاتك المتاحة:</b> {db_user.available_spins}
-<tg-emoji emoji-id='5453957997418004470'>👥</tg-emoji> <b>إحالاتك:</b> {db_user.total_referrals}
+{t('welcome_your_balance', user_id, balance=db_user.balance)}
+{t('welcome_your_spins', user_id, spins=db_user.available_spins)}
+{t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
-<b><tg-emoji emoji-id='5461009483314517035'>🎯</tg-emoji> كيف تربح؟</b>
-• قم بدعوة أصدقائك (كل {SPINS_PER_REFERRALS} إحالات = لفة مجانية)
-• أكمل المهام اليومية
-• إلعب عجلة الحظ واربح TON!
-• إسحب أرباحك مباشرة إلى محفظتك
+{t('welcome_how_to_earn', user_id)}
+{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_complete_tasks', user_id)}
+{t('welcome_play_wheel', user_id)}
+{t('welcome_withdraw', user_id)}
 
-<b><tg-emoji emoji-id='5188481279963715781'>🚀</tg-emoji> ابدأ الآن واستمتع بالأرباح!</b>
+{t('welcome_start_now', user_id)}
 """
     
     keyboard = []
     keyboard.append([InlineKeyboardButton(
-        "🎰 افتح Arab Ton Gifts",
+        t('btn_open_mini_app', user_id),
         web_app=WebAppInfo(url=f"{MINI_APP_URL}?user_id={user_id}")
     )])
     
-    ref_link = generate_referral_link(user_id)  # استخدام start بدلاً من startapp
-    ref_text = f"🎁 انضم لـ Arab Ton Gifts واربح TON مجاناً!\n\n{ref_link}"
+    ref_link = generate_referral_link(user_id)
+    ref_text = t('share_ref_text', user_id, link=ref_link)
     keyboard.append([InlineKeyboardButton(
-        "📤 مشاركة رابط الدعوة",
+        t('btn_share_ref_link', user_id),
         switch_inline_query=ref_text
     )])
     
     keyboard.append([InlineKeyboardButton(
-        "� قناة السحوبات والإثباتات",
+        t('btn_withdrawals_channel', user_id),
         url="https://t.me/ArbTon_Draws"
+    )])
+    
+    # زر تغيير اللغة
+    keyboard.append([InlineKeyboardButton(
+        t('btn_language', user_id),
+        callback_data="open_language_menu"
     )])
     
     if is_admin(user_id):
@@ -3255,17 +3261,71 @@ async def language_selection_callback(update: Update, context: ContextTypes.DEFA
             success = i18n.set_user_language(user_id, lang_code)
             
             if success:
-                # رسائل النجاح بكل لغة
-                success_messages = {
-                    'ar': '✅ تم تغيير اللغة إلى العربية',
-                    'en': '✅ Language changed to English',
-                    'ru': '✅ Язык изменен на русский'
-                }
-                await query.edit_message_text(
-                    success_messages.get(lang_code, success_messages['ar']),
-                    parse_mode=ParseMode.HTML
-                )
                 logger.info(f"✅ User {user_id} language changed to {lang_code}")
+                
+                # إعادة عرض القائمة الرئيسية بالترجمة الجديدة
+                # الحصول على بيانات المستخدم
+                user = query.from_user
+                username = user.username or f"user_{user_id}"
+                full_name = user.full_name or username
+                
+                db_user = db.get_user(user_id)
+                if not db_user:
+                    db_user = db.create_or_update_user(user_id, username, full_name, None)
+                
+                # رسالة الترحيب (مع الترجمة الجديدة)
+                welcome_text = f"""{t('welcome_title', user_id)}
+
+{t('welcome_intro', user_id, name=full_name)}
+
+{t('welcome_your_balance', user_id, balance=db_user.balance)}
+{t('welcome_your_spins', user_id, spins=db_user.available_spins)}
+{t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
+
+{t('welcome_how_to_earn', user_id)}
+{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_complete_tasks', user_id)}
+{t('welcome_play_wheel', user_id)}
+{t('welcome_withdraw', user_id)}
+
+{t('welcome_start_now', user_id)}
+"""
+                
+                # الأزرار
+                keyboard = []
+                
+                # زر فتح Mini App
+                keyboard.append([InlineKeyboardButton(
+                    t('btn_open_mini_app', user_id),
+                    web_app=WebAppInfo(url=f"{MINI_APP_URL}?user_id={user_id}")
+                )])
+                
+                # زر مشاركة رابط الدعوة
+                ref_link = generate_referral_link(user_id)
+                ref_text = t('share_ref_text', user_id, link=ref_link)
+                keyboard.append([InlineKeyboardButton(
+                    t('btn_share_ref_link', user_id),
+                    switch_inline_query=ref_text
+                )])
+                
+                # زر قناة السحوبات والإثباتات  
+                keyboard.append([InlineKeyboardButton(
+                    t('btn_withdrawals_channel', user_id),
+                    url="https://t.me/ArbTon_Draws"
+                )])
+                
+                # زر لوحة الأدمن (للأدمن فقط)
+                if is_admin(user_id):
+                    keyboard.append([
+                        InlineKeyboardButton("⚙️ لوحة المالكين", callback_data="admin_panel"),
+                        InlineKeyboardButton("🖥️ لوحة الأدمن", web_app=WebAppInfo(url=f"{MINI_APP_URL}/admin?user_id={user_id}"))
+                    ])
+                
+                await query.edit_message_text(
+                    welcome_text,
+                    parse_mode=ParseMode.HTML,
+                    reply_markup=InlineKeyboardMarkup(keyboard)
+                )
             else:
                 await query.edit_message_text("❌ Failed to change language. Try again.")
         return
@@ -3583,23 +3643,22 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
     if not db_user:
         db_user = db.create_or_update_user(user_id, username, full_name, None)
     
-    # رسالة الترحيب
-    welcome_text = f"""
-🎁 <b>مرحباً بك في Arab Ton Gifts!</b> 🎁
+    # رسالة الترحيب (مع الترجمة)
+    welcome_text = f"""{t('welcome_title', user_id)}
 
-<b>{full_name}</b>، أهلاً بك في أفضل بوت للأرباح والهدايا! 🌟
+{t('welcome_intro', user_id, name=full_name)}
 
-💰 <b>رصيدك الحالي:</b> {db_user.balance:.2f} TON
-🎰 <b>لفاتك المتاحة:</b> {db_user.available_spins}
-👥 <b>إحالاتك:</b> {db_user.total_referrals}
+{t('welcome_your_balance', user_id, balance=db_user.balance)}
+{t('welcome_your_spins', user_id, spins=db_user.available_spins)}
+{t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
-<b>🎯 كيف تربح؟</b>
-• قم بدعوة أصدقائك (كل {SPINS_PER_REFERRALS} إحالات = لفة مجانية)
-• أكمل المهام اليومية
-• إلعب عجلة الحظ واربح TON!
-• إسحب أرباحك مباشرة إلى محفظتك
+{t('welcome_how_to_earn', user_id)}
+{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_complete_tasks', user_id)}
+{t('welcome_play_wheel', user_id)}
+{t('welcome_withdraw', user_id)}
 
-<b>🚀 ابدأ الآن واستمتع بالأرباح!</b>
+{t('welcome_start_now', user_id)}
 """
     
     # الأزرار
@@ -3607,22 +3666,28 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
     
     # زر فتح Mini App
     keyboard.append([InlineKeyboardButton(
-        "🎰 افتح Arab Ton Gifts",
+        t('btn_open_mini_app', user_id),
         web_app=WebAppInfo(url=f"{MINI_APP_URL}?user_id={user_id}")
     )])
     
     # زر مشاركة رابط الدعوة
     ref_link = generate_referral_link(user_id)
-    ref_text = f"🎁 انضم لـ Arab Ton Gifts واربح TON مجاناً!\n\n{ref_link}"
+    ref_text = t('share_ref_text', user_id, link=ref_link)
     keyboard.append([InlineKeyboardButton(
-        "📤 مشاركة رابط الدعوة",
+        t('btn_share_ref_link', user_id),
         switch_inline_query=ref_text
     )])
     
     # زر قناة السحوبات والإثباتات  
     keyboard.append([InlineKeyboardButton(
-        "📊 قناة السحوبات والإثباتات",
+        t('btn_withdrawals_channel', user_id),
         url="https://t.me/ArbTon_Draws"
+    )])
+    
+    # زر تغيير اللغة
+    keyboard.append([InlineKeyboardButton(
+        t('btn_language', user_id),
+        callback_data="open_language_menu"
     )])
     
     # زر لوحة الأدمن (للأدمن فقط)
