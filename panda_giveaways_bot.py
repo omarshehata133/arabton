@@ -2016,13 +2016,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             first_channel = not_subscribed[0]
             
             subscription_text = f"""
-<tg-emoji emoji-id='5370599459661045441'>🤍</tg-emoji> <b>اشتراك إجباري</b>
+{t('subscription_required_title', user_id)}
 
-عزيزي <b>{full_name}</b>، للاستمرار في استخدام البوت، يجب الاشتراك في القناة التالية:
-
-• <b>{first_channel['channel_name']}</b>
-
-بعد الاشتراك، اضغط على زر "<tg-emoji emoji-id='5260463209562776385'>✅</tg-emoji> تحققت من الاشتراك" أدناه.
+{t('subscription_required_message', user_id, name=full_name, channel_name=first_channel['channel_name'])}
 """
             
             keyboard = [
@@ -2031,7 +2027,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     url=first_channel['channel_url']
                 )],
                 [InlineKeyboardButton(
-                    "✅ تحققت من الاشتراك",
+                    t('btn_subscribed', user_id),
                     callback_data="check_subscription"
                 )]
             ]
@@ -2164,25 +2160,24 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_ref_link = generate_referral_link(user_id)
     
     # رسالة الترحيب
-    welcome_text = f"""
-<tg-emoji emoji-id='5202046839678866384'>💎</tg-emoji> <b>مرحباً بك في Arab Ton Gifts!</b> <tg-emoji emoji-id='5472096095280569232'>🎁</tg-emoji>
+    welcome_text = f"""{t('welcome_title', user_id)}
 
-<b>{full_name}</b>، أهلاً بك في أفضل بوت للأرباح والهدايا! <tg-emoji emoji-id='5897920748101571572'>🌟</tg-emoji>
+{t('welcome_intro', user_id, name=full_name)}
 
-<tg-emoji emoji-id='5278467510604160626'>💰</tg-emoji> <b>رصيدك الحالي:</b> {db_user.balance:.2f} TON
-<tg-emoji emoji-id='5202046839678866384'>🎰</tg-emoji> <b>لفاتك المتاحة:</b> {db_user.available_spins}
-<tg-emoji emoji-id='5453957997418004470'>👥</tg-emoji> <b>إحالاتك:</b> {db_user.total_referrals}
+{t('welcome_your_balance', user_id, balance=db_user.balance)}
+{t('welcome_your_spins', user_id, spins=db_user.available_spins)}
+{t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
-<b><tg-emoji emoji-id='5461009483314517035'>🎯</tg-emoji> كيف تربح؟</b>
-• قم بدعوة أصدقائك (كل {SPINS_PER_REFERRALS} إحالات = لفة مجانية)
-• أكمل المهام اليومية
-• إلعب عجلة الحظ واربح TON!
-• إسحب أرباحك مباشرة إلى محفظتك
+{t('welcome_how_to_earn', user_id)}
+{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_complete_tasks', user_id)}
+{t('welcome_play_wheel', user_id)}
+{t('welcome_withdraw', user_id)}
 
-<tg-emoji emoji-id='5271604874419647061'>🔗</tg-emoji> <b>رابط الدعوة الخاص بك:</b>
+{t('ref_link_label', user_id)}
 <code>{user_ref_link}</code>
 
-<b><tg-emoji emoji-id='5188481279963715781'>🚀</tg-emoji> ابدأ الآن واستمتع بالأرباح!</b>
+{t('welcome_start_now', user_id)}
 """
     
     # الأزرار
@@ -2190,27 +2185,27 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # زر فتح Mini App
     keyboard.append([InlineKeyboardButton(
-        "افتح Arab Ton Gifts 🎁",
+        t('btn_open_mini_app_text', user_id),
         web_app=WebAppInfo(url=f"{MINI_APP_URL}?user_id={user_id}")
     )])
     
     # زر مشاركة رابط الدعوة (نسخ) - تغيير من startapp إلى start
     ref_link = generate_referral_link(user_id)
-    ref_text = f"🎁 انضم لـ Arab Ton Gifts واربح TON مجاناً!\n\n{ref_link}"
+    ref_text = t('share_ref_text', user_id, link=ref_link)
     keyboard.append([InlineKeyboardButton(
-        "📤 مشاركة رابط الدعوة",
+        t('btn_share_ref_link_text', user_id),
         switch_inline_query=ref_text
     )])
     
     # زر إثباتات الدفع
     keyboard.append([InlineKeyboardButton(
-        "📊 قناة السحوبات والإثباتات",
+        t('btn_withdrawals_channel_text', user_id),
         url="https://t.me/ArbTon_Draws"
     )])
     
     # زر تغيير اللغة
     keyboard.append([InlineKeyboardButton(
-        "🌐 تغيير اللغة",
+        t('btn_change_language', user_id),
         callback_data="open_language_menu"
     )])
     
@@ -5577,17 +5572,18 @@ def send_welcome_message():
         try:
             import requests as req
             
-            welcome_text = f"""
-🎉 <b>مرحباً بك في Arab Ton Gifts!</b>
+            # استخدام نظام الترجمة
+            welcome_text = f"""{t('welcome_title', user_id)}
 
-<b>{full_name}</b>، سعداء بانضمامك! 🎁
+{t('welcome_intro', user_id, name=full_name)}
 
-💰 استمتع بالأرباح اليومية
-🎰 العب عجلة الحظ
-👥 ادعُ أصدقاءك واربح المزيد
-💎 اسحب أرباحك مباشرة
+{t('welcome_how_to_earn', user_id)}
+{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_complete_tasks', user_id)}
+{t('welcome_play_wheel', user_id)}
+{t('welcome_withdraw', user_id)}
 
-🚀 <b>ابدأ الآن وحقق أرباحك!</b>
+{t('welcome_start_now', user_id)}
 """
             
             api_url = f'https://api.telegram.org/bot{BOT_TOKEN}/sendMessage'

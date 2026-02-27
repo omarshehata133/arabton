@@ -120,7 +120,7 @@ TRANSLATIONS = {
         'stats_next_spin': "<tg-emoji emoji-id='5217697679030637222'>⏳</tg-emoji> <b>متبقي للفة القادمة:</b> {remaining} إحالات",
         'stats_member_since': "<tg-emoji emoji-id='5373236586760651455'>📅</tg-emoji> <b>عضو منذ:</b> {date}",
         'stats_last_active': "<tg-emoji emoji-id='5345905193005371012'>⚡️</tg-emoji> <b>آخر نشاط:</b> {date}",
-        'btn_get_ref_link': "<tg-emoji emoji-id='5377399294060588749'>🔗</tg-emoji> رابط الدعوة",
+        'btn_get_ref_link': '🔗 رابط الدعوة',
         
         # Language Selection
         'language_select': '🌐 <b>اختر اللغة / Choose Language / Выберите язык</b>',
@@ -153,11 +153,19 @@ TRANSLATIONS = {
         'welcome_play_wheel': '• إلعب عجلة الحظ واربح TON!',
         'welcome_withdraw': '• إسحب أرباحك مباشرة إلى محفظتك',
         'welcome_start_now': "<b><tg-emoji emoji-id=\'5188481279963715781\'>🚀</tg-emoji> ابدأ الآن واستمتع بالأرباح!</b>",
-        'btn_open_mini_app': "<tg-emoji emoji-id=\'5202046839678866384\'>🎰</tg-emoji> افتح Arab Ton Gifts",
-        'btn_share_ref_link': "<tg-emoji emoji-id=\'5350619413533958825\'>📤</tg-emoji> مشاركة رابط الدعوة",
-        'btn_withdrawals_channel': "<tg-emoji emoji-id=\'5422360266618707867\'>📊</tg-emoji> قناة السحوبات والإثباتات",
-        'share_ref_text': "<tg-emoji emoji-id=\'5472096095280569232\'>🎁</tg-emoji> انضم لـ Arab Ton Gifts واربح TON مجاناً!\n\n{link}",
-    },
+        'btn_open_mini_app': '🎰 افتح Arab Ton Gifts',
+        'btn_share_ref_link': '📤 مشاركة رابط الدعوة',
+        'btn_withdrawals_channel': '📊 قناة السحوبات والإثباتات',
+        'share_ref_text': "<tg-emoji emoji-id=\'5472096095280569232\'>🎁</tg-emoji> انضم لـ Arab Ton Gifts واربح TON مجاناً!\n\n{link}",        
+        # Subscription Required
+        'subscription_required_title': '<tg-emoji emoji-id=\'5370599459661045441\'>🤍</tg-emoji> <b>اشتراك إجباري</b>',
+        'subscription_required_message': 'عزيزي <b>{name}</b>، للاستمرار في استخدام البوت، يجب الاشتراك في القناة التالية:\n\n• <b>{channel_name}</b>\n\nبعد الاشتراك، اضغط على زر "<tg-emoji emoji-id=\'5260463209562776385\'>✅</tg-emoji> تحققت من الاشتراك" أدناه.',
+        'btn_subscribed': '✅ تحققت من الاشتراك',
+        'btn_change_language': '🌐 تغيير اللغة',
+        'btn_open_mini_app_text': 'افتح Arab Ton Gifts 🎁',
+        'btn_share_ref_link_text': '📤 مشاركة رابط الدعوة',
+        'btn_withdrawals_channel_text': '📊 قناة السحوبات والإثباتات',
+        'ref_link_label': '🔗 <b>رابط الدعوة الخاص بك:</b>',    },
     
     # ══════════════ ENGLISH (en) ══════════════
     'en': {
@@ -265,7 +273,7 @@ TRANSLATIONS = {
         'stats_next_spin': "<tg-emoji emoji-id='5217697679030637222'>⏳</tg-emoji> <b>Remaining for next spin:</b> {remaining} referrals",
         'stats_member_since': "<tg-emoji emoji-id='5373236586760651455'>📅</tg-emoji> <b>Member Since:</b> {date}",
         'stats_last_active': "<tg-emoji emoji-id='5345905193005371012'>⚡️</tg-emoji> <b>Last Active:</b> {date}",
-        'btn_get_ref_link': "<tg-emoji emoji-id='5377399294060588749'>🔗</tg-emoji> Referral Link",
+        'btn_get_ref_link': '🔗 Referral Link',
         # Language Selection
         'language_select': '🌐 <b>Choose Language / اختر اللغة / Выберите язык</b>',
         'language_changed': '✅ Language changed to English',
@@ -297,11 +305,19 @@ TRANSLATIONS = {
         'welcome_play_wheel': '• Play the lucky wheel and win TON!',
         'welcome_withdraw': '• Withdraw your earnings directly to your wallet',
         'welcome_start_now': "<b><tg-emoji emoji-id=\'5188481279963715781\'>🚀</tg-emoji> Start now and enjoy the profits!</b>",
-        'btn_open_mini_app': "<tg-emoji emoji-id=\'5202046839678866384\'>🎰</tg-emoji> Open Arab Ton Gifts",
-        'btn_share_ref_link': "<tg-emoji emoji-id=\'5350619413533958825\'>📤</tg-emoji> Share Referral Link",
-        'btn_withdrawals_channel': "<tg-emoji emoji-id=\'5422360266618707867\'>📊</tg-emoji> Withdrawals & Proofs Channel",
-        'share_ref_text': "<tg-emoji emoji-id=\'5472096095280569232\'>🎁</tg-emoji> Join Arab Ton Gifts and earn TON for free!\n\n{link}",
-    },
+        'btn_open_mini_app': '🎰 Open Arab Ton Gifts',
+        'btn_share_ref_link': '📤 Share Referral Link',
+        'btn_withdrawals_channel': '📊 Withdrawals & Proofs Channel',
+        'share_ref_text': "<tg-emoji emoji-id=\'5472096095280569232\'>🎁</tg-emoji> Join Arab Ton Gifts and earn TON for free!\n\n{link}",        
+        # Subscription Required
+        'subscription_required_title': '<tg-emoji emoji-id=\'5370599459661045441\'>🤍</tg-emoji> <b>Subscription Required</b>',
+        'subscription_required_message': 'Dear <b>{name}</b>, to continue using the bot, you must subscribe to the following channel:\n\n• <b>{channel_name}</b>\n\nAfter subscribing, click the "<tg-emoji emoji-id=\'5260463209562776385\'>✅</tg-emoji> I\'ve Subscribed" button below.',
+        'btn_subscribed': '✅ I\'ve Subscribed',
+        'btn_change_language': '🌐 Change Language',
+        'btn_open_mini_app_text': 'Open Arab Ton Gifts 🎁',
+        'btn_share_ref_link_text': '📤 Share Referral Link',
+        'btn_withdrawals_channel_text': '📊 Withdrawals & Proofs Channel',
+        'ref_link_label': '🔗 <b>Your Referral Link:</b>',    },
     
     # ══════════════ RUSSIAN (ru) ══════════════
     'ru': {
@@ -409,7 +425,7 @@ TRANSLATIONS = {
         'stats_next_spin': "<tg-emoji emoji-id='5217697679030637222'>⏳</tg-emoji> <b>Осталось до следующего вращения:</b> {remaining} рефералов",
         'stats_member_since': "<tg-emoji emoji-id='5373236586760651455'>📅</tg-emoji> <b>Участник с:</b> {date}",
         'stats_last_active': "<tg-emoji emoji-id='5345905193005371012'>⚡️</tg-emoji> <b>Последняя активность:</b> {date}",
-        'btn_get_ref_link': "<tg-emoji emoji-id='5377399294060588749'>🔗</tg-emoji> Реферальная ссылка",
+        'btn_get_ref_link': '🔗 Реферальная ссылка',
         'help_withdrawal_methods': '• Способы: TON Кошелек, Vodafone Cash',
         'help_support': '<b>💬 Поддержка:</b>',
         'help_contact': 'Связаться с @FPIOG',
@@ -445,11 +461,19 @@ TRANSLATIONS = {
         'welcome_play_wheel': '• Крутите колесо удачи и выигрывайте TON!',
         'welcome_withdraw': '• Выводите заработок прямо на свой кошелек',
         'welcome_start_now': "<b><tg-emoji emoji-id=\'5188481279963715781\'>🚀</tg-emoji> Начните сейчас и наслаждайтесь прибылью!</b>",
-        'btn_open_mini_app': "<tg-emoji emoji-id=\'5202046839678866384\'>🎰</tg-emoji> Открыть Arab Ton Gifts",
-        'btn_share_ref_link': "<tg-emoji emoji-id=\'5350619413533958825\'>📤</tg-emoji> Поделиться реферальной ссылкой",
-        'btn_withdrawals_channel': "<tg-emoji emoji-id=\'5422360266618707867\'>📊</tg-emoji> Канал выводов и доказательств",
-        'share_ref_text': "<tg-emoji emoji-id=\'5472096095280569232\'>🎁</tg-emoji> Присоединяйтесь к Arab Ton Gifts и зарабатывайте TON бесплатно!\n\n{link}",
-    },
+        'btn_open_mini_app': '🎰 Открыть Arab Ton Gifts',
+        'btn_share_ref_link': '📤 Поделиться реферальной ссылкой',
+        'btn_withdrawals_channel': '📊 Канал выводов и доказательств',
+        'share_ref_text': "<tg-emoji emoji-id=\'5472096095280569232\'>🎁</tg-emoji> Присоединяйтесь к Arab Ton Gifts и зарабатывайте TON бесплатно!\n\n{link}",        
+        # Subscription Required
+        'subscription_required_title': '<tg-emoji emoji-id=\'5370599459661045441\'>🤍</tg-emoji> <b>Обязательная подписка</b>',
+        'subscription_required_message': 'Дорогой <b>{name}</b>, для продолжения использования бота, вы должны подписаться на следующий канал:\n\n• <b>{channel_name}</b>\n\nПосле подписки, нажмите кнопку "<tg-emoji emoji-id=\'5260463209562776385\'>✅</tg-emoji> Я подписался" ниже.',
+        'btn_subscribed': '✅ Я подписался',
+        'btn_change_language': '🌐 Изменить язык',
+        'btn_open_mini_app_text': 'Открыть Arab Ton Gifts 🎁',
+        'btn_share_ref_link_text': '📤 Поделиться реферальной ссылкой',
+        'btn_withdrawals_channel_text': '📊 Канал выводов и доказательств',
+        'ref_link_label': '🔗 <b>Ваша реферальная ссылка:</b>',    },
 }
 
 # ═══════════════════════════════════════════════════════════
