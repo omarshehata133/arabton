@@ -72,6 +72,15 @@ const translations = {
         'referral-status-pending': 'قيد الانتظار',
         'referral-joined': 'انضم في',
         
+        // Additional translations for app.js
+        'no-referrals-yet': 'لم تقم بدعوة أحد بعد! شارك رابطك الآن 🚀',
+        'copy': 'نسخ',
+        'share-link': 'مشاركة الرابط',
+        'no-tasks-now': 'لا توجد مهام حالياً. تحقق لاحقاً!',
+        'completed': 'مكتمل',
+        'no-withdrawals-history': 'لا توجد سحوبات سابقة',
+        'rejected': 'مرفوض',
+        
         // Withdrawal Section
         'withdrawal-title': '💰 طلب سحب',
         'withdrawal-subtitle': 'اسحب أرباحك إلى محفظتك',
@@ -188,6 +197,15 @@ const translations = {
         'referral-status-valid': 'Valid',
         'referral-status-pending': 'Pending',
         'referral-joined': 'Joined on',
+        
+        // Additional translations for app.js
+        'no-referrals-yet': "You haven't invited anyone yet! Share your link now 🚀",
+        'copy': 'Copy',
+        'share-link': 'Share Link',
+        'no-tasks-now': 'No tasks available right now. Check back later!',
+        'completed': 'Completed',
+        'no-withdrawals-history': 'No withdrawal history',
+        'rejected': 'Rejected',
         
         // Withdrawal Section
         'withdrawal-title': '💰 Request Withdrawal',
@@ -306,6 +324,15 @@ const translations = {
         'referral-status-pending': 'В ожидании',
         'referral-joined': 'Присоединился',
         
+        // Additional translations for app.js
+        'no-referrals-yet': 'Вы еще никого не пригласили! Поделитесь своей ссылкой сейчас 🚀',
+        'copy': 'Копировать',
+        'share-link': 'Поделиться ссылкой',
+        'no-tasks-now': 'Сейчас нет доступных задач. Проверьте позже!',
+        'completed': 'Выполнено',
+        'no-withdrawals-history': 'Нет истории выводов',
+        'rejected': 'Отклонено',
+        
         // Withdrawal Section
         'withdrawal-title': '💰 Запрос на вывод',
         'withdrawal-subtitle': 'Выведите свой заработок на кошелек',
@@ -405,6 +432,10 @@ class LanguageManager {
         
         // Update all translatable elements
         this.updatePageTranslations();
+        
+        // Dispatch language change event for listeners
+        const event = new CustomEvent('languageChanged', { detail: { lang: lang } });
+        document.dispatchEvent(event);
         
         console.log(`✅ Language changed to: ${lang}`);
         return true;
