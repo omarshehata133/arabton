@@ -2478,40 +2478,38 @@ async def device_verified_callback(update: Update, context: ContextTypes.DEFAULT
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """معالج أمر /help"""
-    help_text = """
-🎁 <b>مساعدة Arab Ton Gifts</b>
+    user_id = update.effective_user.id
+    
+    help_text = f"""{t('help_title', user_id)}
 
-<b><tg-emoji emoji-id='5197269100878907942'>📋</tg-emoji> الأوامر المتاحة:</b>
-/start - بدء البوت
-/help - عرض المساعدة
-/stats - إحصائياتك الشخصية
-/referrals - عرض إحالاتك
-/balance - عرض رصيدك
+{t('help_commands_title', user_id)}
+{t('help_cmd_start', user_id)}
+{t('help_cmd_help', user_id)}
+{t('help_cmd_stats', user_id)}
+{t('help_cmd_referrals', user_id)}
+{t('help_cmd_balance', user_id)}
 
-<b><tg-emoji emoji-id='5202046839678866384'>🎰</tg-emoji> كيف تعمل عجلة الحظ؟</b>
-• افتح Mini App من زر "افتح Arab Ton Gifts"
-• إستخدم لفاتك المتاحة
-• اربح TON فوراً!
+{t('help_wheel_title', user_id)}
+{t('help_wheel_1', user_id)}
+{t('help_wheel_2', user_id)}
+{t('help_wheel_3', user_id)}
 
-<b><tg-emoji emoji-id='5453957997418004470'>👥</tg-emoji> نظام الإحالات:</b>
-• كل {SPINS_PER_REFERRALS} إحالات صحيحة = لفة مجانية
-• شارك رابطك مع الأصدقاء
-• تأكد من اشتراكهم بالقنوات
+{t('help_referrals_title', user_id)}
+{t('help_referrals_1', user_id, refs=SPINS_PER_REFERRALS)}
+{t('help_referrals_2', user_id)}
+{t('help_referrals_3', user_id)}
 
-<b><tg-emoji emoji-id='5278467510604160626'>💰</tg-emoji> السحوبات:</b>
-• الحد الأدنى: {MIN_WITHDRAWAL_AMOUNT} TON
-• ادخل من قسم السحب في Mini App
-• اربط محفظة TON أو رقم فودافون كاش
-• انتظر موافقة الأدمن
+{t('help_withdrawals_title', user_id)}
+{t('help_withdrawals_min', user_id, min=MIN_WITHDRAWAL_AMOUNT)}
+{t('help_withdrawals_2', user_id)}
+{t('help_withdrawals_3', user_id)}
+{t('help_withdrawals_4', user_id)}
 
-<b><tg-emoji emoji-id='5472201536727686043'>📞</tg-emoji> للدعم:</b>
-تواصل مع @FPIOG
+{t('help_support_title', user_id)}
+{t('help_support_contact', user_id)}
 """
     
-    await update.message.reply_text(help_text.format(
-        SPINS_PER_REFERRALS=SPINS_PER_REFERRALS,
-        MIN_WITHDRAWAL_AMOUNT=MIN_WITHDRAWAL_AMOUNT
-    ), parse_mode=ParseMode.HTML)
+    await update.message.reply_text(help_text, parse_mode=ParseMode.HTML)
 
 async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """عرض إحصائيات المستخدم"""
@@ -2519,33 +2517,32 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = db.get_user(user_id)
     
     if not user:
-        await update.message.reply_text("<tg-emoji emoji-id='5273914604752216432'>❌</tg-emoji> لم يتم العثور على حسابك. استخدم /start أولاً.")
+        await update.message.reply_text(t('user_not_found', user_id))
         return
     
     # حساب الإحالات المتبقية للفة القادمة
     valid_refs = user.total_referrals
     next_spin_in = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
     
-    stats_text = f"""
-<tg-emoji emoji-id='5422360266618707867'>📊</tg-emoji> <b>إحصائياتك الشخصية</b>
+    stats_text = f"""{t('stats_title_text', user_id)}
 
-<tg-emoji emoji-id='5453957997418004470'>👥</tg-emoji> <b>الاسم:</b> {user.full_name}
-<tg-emoji emoji-id='5812093549042210992'>🆔</tg-emoji> <b>المعرف:</b> @{user.username}
+{t('stats_name', user_id, name=user.full_name)}
+{t('stats_username', user_id, username=user.username)}
 
-<tg-emoji emoji-id='5278467510604160626'>💰</tg-emoji> <b>الرصيد:</b> {user.balance:.4f} TON
-<tg-emoji emoji-id='5202046839678866384'>🎰</tg-emoji> <b>لفات متاحة:</b> {user.available_spins}
-<tg-emoji emoji-id='5226513232549664618'>🔢</tg-emoji> <b>إجمالي اللفات:</b> {user.total_spins}
+{t('stats_balance', user_id, balance=user.balance)}
+{t('stats_spins', user_id, spins=user.available_spins)}
+{t('stats_total_spins', user_id, total=user.total_spins)}
 
-<tg-emoji emoji-id='5453957997418004470'>👥</tg-emoji> <b>الإحالات:</b> {user.total_referrals}
-<tg-emoji emoji-id='5217697679030637222'>⏳</tg-emoji> <b>متبقي للفة القادمة:</b> {next_spin_in} إحالات
+{t('stats_referrals', user_id, referrals=user.total_referrals)}
+{t('stats_next_spin', user_id, remaining=next_spin_in)}
 
-<tg-emoji emoji-id='5373236586760651455'>📅</tg-emoji> <b>عضو منذ:</b> {user.created_at[:10]}
-<tg-emoji emoji-id='5345905193005371012'>⚡️</tg-emoji> <b>آخر نشاط:</b> {user.last_active[:10] if user.last_active else 'N/A'}
+{t('stats_member_since', user_id, date=user.created_at[:10])}
+{t('stats_last_active', user_id, date=user.last_active[:10] if user.last_active else 'N/A')}
 """
     
     keyboard = [[
-        InlineKeyboardButton("🎰 افتح Mini App", web_app=WebAppInfo(url=f"{MINI_APP_URL}?user_id={user_id}")),
-        InlineKeyboardButton("🔗 رابط الدعوة", callback_data="get_ref_link")
+        InlineKeyboardButton(t('btn_open_mini_app', user_id), web_app=WebAppInfo(url=f"{MINI_APP_URL}?user_id={user_id}")),
+        InlineKeyboardButton(t('btn_get_ref_link', user_id), callback_data="get_ref_link")
     ]]
     
     await update.message.reply_text(
