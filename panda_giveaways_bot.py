@@ -428,6 +428,22 @@ class DatabaseManager:
             VALUES ('bot_enabled', 'true', ?)
         """, (datetime.now().isoformat(),))
         
+        # إضافة إعدادات الإحالات
+        cursor.execute("""
+            INSERT OR IGNORE INTO bot_settings (setting_key, setting_value, updated_at)
+            VALUES ('min_withdrawal', '0.1', ?)
+        """, (datetime.now().isoformat(),))
+        
+        cursor.execute("""
+            INSERT OR IGNORE INTO bot_settings (setting_key, setting_value, updated_at)
+            VALUES ('max_withdrawal', '100.0', ?)
+        """, (datetime.now().isoformat(),))
+        
+        cursor.execute("""
+            INSERT OR IGNORE INTO bot_settings (setting_key, setting_value, updated_at)
+            VALUES ('referrals_per_spin', '5', ?)
+        """, (datetime.now().isoformat(),))
+        
         # إنشاء indexes لتحسين الأداء
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_referrals_referrer ON referrals(referrer_id)")
         cursor.execute("CREATE INDEX IF NOT EXISTS idx_spins_user ON spins(user_id)")
@@ -438,6 +454,39 @@ class DatabaseManager:
         conn.commit()
         conn.close()
         logger.info("✅ All database tables created successfully")
+    
+    # ═══════════════════════════════════════════════════════════
+    # ⚙️ SETTINGS OPERATIONS
+    # ═══════════════════════════════════════════════════════════
+    
+    def get_bot_setting(self, setting_key: str, default_value):
+        """الحصول على إعداد من قاعدة البيانات مع قيمة افتراضية"""
+        try:
+            conn = self.get_connection()
+            cursor = conn.cursor()
+            cursor.execute("SELECT setting_value FROM bot_settings WHERE setting_key = ?", (setting_key,))
+            row = cursor.fetchone()
+            conn.close()
+            
+            if row:
+                value = row['setting_value']
+                # تحويل القيمة حسب نوع القيمة الافتراضية
+                if isinstance(default_value, bool):
+                    return value == 'true'
+                elif isinstance(default_value, int):
+                    return int(value)
+                elif isinstance(default_value, float):
+                    return float(value)
+                else:
+                    return value
+            return default_value
+        except Exception as e:
+            logger.error(f"Error getting setting {setting_key}: {e}")
+            return default_value
+    
+    def get_referrals_per_spin(self):
+        """الحصول على عدد الإحالات المطلوبة للفة واحدة"""
+        return self.get_bot_setting('referrals_per_spin', 5)
     
     # ═══════════════════════════════════════════════════════════
     # 👤 USER OPERATIONS
@@ -709,8 +758,9 @@ class DatabaseManager:
                 cursor.execute("SELECT valid_referrals FROM users WHERE user_id = ?", (referrer_id,))
                 valid_refs = cursor.fetchone()['valid_referrals']
                 
-                # كل 5 إحالات = لفة واحدة
-                if valid_refs % SPINS_PER_REFERRALS == 0:
+                # إحالات للفة واحدة (قراءة ديناميكية من قاعدة البيانات)
+                spins_per_referrals = get_spins_per_referrals()
+                if valid_refs % get_spins_per_referrals() == 0:
                     cursor.execute("""
                         UPDATE users 
                         SET available_spins = available_spins + 1 
@@ -1578,6 +1628,11 @@ class TONWalletManager:
 # Initialize global objects
 db = DatabaseManager()
 
+# دالة مساعدة للحصول على عدد الإحالات المطلوبة للفة
+def get_spins_per_referrals():
+    """الحصول على عدد الإحالات المطلوبة للفة من قاعدة البيانات"""
+    return db.get_referrals_per_spin()
+
 # Initialize i18n system
 i18n = None
 if I18N_AVAILABLE:
@@ -2090,8 +2145,9 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                 valid_refs = ref_data['valid_referrals']
                                 current_spins = ref_data['available_spins']
                                 
-                                # كل 5 إحالات = لفة واحدة
-                                if valid_refs % SPINS_PER_REFERRALS == 0:
+                                # إحالات للفة واحدة (قراءة ديناميكية)
+                                spins_per_referrals = get_spins_per_referrals()
+                                if valid_refs % get_spins_per_referrals() == 0:
                                     cursor.execute("""
                                         UPDATE users 
                                         SET available_spins = available_spins + 1 
@@ -2099,7 +2155,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                     """, (final_referrer,))
                                     
                                     # إرسال إشعار للداعي
-                                    remaining_for_next = SPINS_PER_REFERRALS
+                                    remaining_for_next = get_spins_per_referrals()
                                     try:
                                         await context.bot.send_message(
                                             chat_id=final_referrer,
@@ -2122,7 +2178,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                                         logger.error(f"Failed to send referral notification: {e}")
                                 else:
                                     # إرسال إشعار بدون لفة
-                                    remaining_for_next = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
+                                    remaining_for_next = get_spins_per_referrals() - (valid_refs % get_spins_per_referrals())
                                     try:
                                         await context.bot.send_message(
                                             chat_id=final_referrer,
@@ -2169,7 +2225,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
 {t('welcome_how_to_earn', user_id)}
-{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_invite_friends', user_id, refs=get_spins_per_referrals())}
 {t('welcome_complete_tasks', user_id)}
 {t('welcome_play_wheel', user_id)}
 {t('welcome_withdraw', user_id)}
@@ -2370,14 +2426,14 @@ async def device_verified_callback(update: Update, context: ContextTypes.DEFAULT
                             valid_refs = ref_data['valid_referrals']
                             current_spins = ref_data['available_spins']
                             
-                            if valid_refs % SPINS_PER_REFERRALS == 0:
+                            if valid_refs % get_spins_per_referrals() == 0:
                                 cursor.execute("""
                                     UPDATE users 
                                     SET available_spins = available_spins + 1 
                                     WHERE user_id = ?
                                 """, (referrer_id,))
                                 
-                                remaining_for_next = SPINS_PER_REFERRALS
+                                remaining_for_next = get_spins_per_referrals()
                                 try:
                                     await context.bot.send_message(
                                         chat_id=referrer_id,
@@ -2399,7 +2455,7 @@ async def device_verified_callback(update: Update, context: ContextTypes.DEFAULT
                                 except Exception as e:
                                     logger.error(f"Failed to send referral notification: {e}")
                             else:
-                                remaining_for_next = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
+                                remaining_for_next = get_spins_per_referrals() - (valid_refs % get_spins_per_referrals())
                                 try:
                                     await context.bot.send_message(
                                         chat_id=referrer_id,
@@ -2490,7 +2546,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 {t('help_wheel_3', user_id)}
 
 {t('help_referrals_title', user_id)}
-{t('help_referrals_1', user_id, refs=SPINS_PER_REFERRALS)}
+{t('help_referrals_1', user_id, refs=get_spins_per_referrals())}
 {t('help_referrals_2', user_id)}
 {t('help_referrals_3', user_id)}
 
@@ -2517,7 +2573,8 @@ async def stats_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     
     # حساب الإحالات المتبقية للفة القادمة
     valid_refs = user.total_referrals
-    next_spin_in = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
+    spins_per_referrals = get_spins_per_referrals()
+    next_spin_in = get_spins_per_referrals() - (valid_refs % get_spins_per_referrals())
     
     stats_text = f"""{t('stats_title_text', user_id)}
 
@@ -2567,7 +2624,7 @@ async def referrals_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 <tg-emoji emoji-id='5422360266618707867'>📊</tg-emoji> <b>إجمالي الإحالات:</b> {total_refs}
 <tg-emoji emoji-id='5260463209562776385'>✅</tg-emoji> <b>الإحالات الصحيحة:</b> {valid_refs}
 <tg-emoji emoji-id='5202046839678866384'>🎰</tg-emoji> <b>لفاتك المتاحة:</b> {user.available_spins}
-<tg-emoji emoji-id='5217697679030637222'>⏳</tg-emoji> <b>متبقي للفة القادمة:</b> {SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS) if valid_refs > 0 else SPINS_PER_REFERRALS}
+<tg-emoji emoji-id='5217697679030637222'>⏳</tg-emoji> <b>متبقي للفة القادمة:</b> {get_spins_per_referrals() - (valid_refs % get_spins_per_referrals()) if valid_refs > 0 else get_spins_per_referrals()}
 
 """
     
@@ -3176,7 +3233,7 @@ async def back_to_start_callback(update: Update, context: ContextTypes.DEFAULT_T
 {t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
 {t('welcome_how_to_earn', user_id)}
-{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_invite_friends', user_id, refs=get_spins_per_referrals())}
 {t('welcome_complete_tasks', user_id)}
 {t('welcome_play_wheel', user_id)}
 {t('welcome_withdraw', user_id)}
@@ -3275,7 +3332,7 @@ async def language_selection_callback(update: Update, context: ContextTypes.DEFA
 {t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
 {t('welcome_how_to_earn', user_id)}
-{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_invite_friends', user_id, refs=get_spins_per_referrals())}
 {t('welcome_complete_tasks', user_id)}
 {t('welcome_play_wheel', user_id)}
 {t('welcome_withdraw', user_id)}
@@ -3447,7 +3504,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                             logger.info(f"📊 Referrer stats: {valid_refs} referrals, {current_spins} spins")
                             
                             # كل 5 إحالات = لفة واحدة
-                            if valid_refs % SPINS_PER_REFERRALS == 0:
+                            if valid_refs % get_spins_per_referrals() == 0:
                                 cursor.execute("""
                                     UPDATE users 
                                     SET available_spins = available_spins + 1 
@@ -3457,7 +3514,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                                 logger.info(f"🎁 Awarding spin to referrer {referrer_id}")
                                 
                                 # إرسال إشعار للداعي
-                                remaining_for_next = SPINS_PER_REFERRALS
+                                remaining_for_next = get_spins_per_referrals()
                                 try:
                                     await context.bot.send_message(
                                         chat_id=referrer_id,
@@ -3481,7 +3538,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                                     logger.error(f"Failed to send referral notification: {e}")
                             else:
                                 # إرسال إشعار بدون لفة
-                                remaining_for_next = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
+                                remaining_for_next = get_spins_per_referrals() - (valid_refs % get_spins_per_referrals())
                                 try:
                                     await context.bot.send_message(
                                         chat_id=referrer_id,
@@ -3560,7 +3617,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                             logger.info(f"📊 Default referrer stats: {valid_refs} referrals, {current_spins} spins")
                             
                             # كل 5 إحالات = لفة واحدة
-                            if valid_refs % SPINS_PER_REFERRALS == 0:
+                            if valid_refs % get_spins_per_referrals() == 0:
                                 cursor.execute("""
                                     UPDATE users 
                                     SET available_spins = available_spins + 1 
@@ -3570,7 +3627,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                                 logger.info(f"🎁 Awarding spin to default referrer {DEFAULT_REFERRER_ID}")
                                 
                                 # إرسال إشعار للداعي
-                                remaining_for_next = SPINS_PER_REFERRALS
+                                remaining_for_next = get_spins_per_referrals()
                                 try:
                                     await context.bot.send_message(
                                         chat_id=DEFAULT_REFERRER_ID,
@@ -3594,7 +3651,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                                     logger.error(f"Failed to send referral notification: {e}")
                             else:
                                 # إرسال إشعار بدون لفة
-                                remaining_for_next = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
+                                remaining_for_next = get_spins_per_referrals() - (valid_refs % get_spins_per_referrals())
                                 try:
                                     await context.bot.send_message(
                                         chat_id=DEFAULT_REFERRER_ID,
@@ -3645,7 +3702,7 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
 {t('welcome_your_referrals', user_id, referrals=db_user.total_referrals)}
 
 {t('welcome_how_to_earn', user_id)}
-{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_invite_friends', user_id, refs=get_spins_per_referrals())}
 {t('welcome_complete_tasks', user_id)}
 {t('welcome_play_wheel', user_id)}
 {t('welcome_withdraw', user_id)}
@@ -5578,7 +5635,7 @@ def send_welcome_message():
 {t('welcome_intro', user_id, name=full_name)}
 
 {t('welcome_how_to_earn', user_id)}
-{t('welcome_invite_friends', user_id, refs=SPINS_PER_REFERRALS)}
+{t('welcome_invite_friends', user_id, refs=get_spins_per_referrals())}
 {t('welcome_complete_tasks', user_id)}
 {t('welcome_play_wheel', user_id)}
 {t('welcome_withdraw', user_id)}
@@ -5853,7 +5910,7 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
                                             current_spins = ref_data['available_spins']
                                             
                                             # كل 5 إحالات = لفة واحدة
-                                            if valid_refs % SPINS_PER_REFERRALS == 0:
+                                            if valid_refs % get_spins_per_referrals() == 0:
                                                 cursor.execute("""
                                                     UPDATE users 
                                                     SET available_spins = available_spins + 1 
@@ -5861,7 +5918,7 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
                                                 """, (referrer_id,))
                                                 
                                                 # إرسال إشعار للداعي
-                                                remaining_for_next = SPINS_PER_REFERRALS
+                                                remaining_for_next = get_spins_per_referrals()
                                                 try:
                                                     await context.bot.send_message(
                                                         chat_id=referrer_id,
@@ -5884,7 +5941,7 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
                                                     logger.error(f"Failed to send referral notification: {e}")
                                             else:
                                                 # إرسال إشعار بدون لفة
-                                                remaining_for_next = SPINS_PER_REFERRALS - (valid_refs % SPINS_PER_REFERRALS)
+                                                remaining_for_next = get_spins_per_referrals() - (valid_refs % get_spins_per_referrals())
                                                 try:
                                                     await context.bot.send_message(
                                                         chat_id=referrer_id,
@@ -6232,3 +6289,4 @@ if __name__ == "__main__":
         logger.error(f"❌ CRITICAL ERROR in main(): {main_error}")
         import traceback
         traceback.print_exc()
+
