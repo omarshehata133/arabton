@@ -748,6 +748,32 @@ def init_database():
         VALUES ('verification_enabled', 'true', ?)
     """, (datetime.now().isoformat(),))
     
+    # جدول إعدادات البوت - للإعدادات القابلة للتغيير من لوحة الأدمن
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS bot_settings (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            setting_key TEXT NOT NULL UNIQUE,
+            setting_value TEXT NOT NULL,
+            updated_at TEXT NOT NULL,
+            updated_by INTEGER
+        )
+    """)
+    
+    # إضافة الإعدادات الافتراضية للبوت
+    now = datetime.now().isoformat()
+    default_settings = [
+        ('min_withdrawal', '0.1', now),
+        ('max_withdrawal', '100.0', now),
+        ('referrals_per_spin', '5', now),
+        ('auto_withdrawal_enabled', 'false', now)
+    ]
+    
+    for key, value, timestamp in default_settings:
+        cursor.execute("""
+            INSERT OR IGNORE INTO bot_settings (setting_key, setting_value, updated_at)
+            VALUES (?, ?, ?)
+        """, (key, value, timestamp))
+    
     # جدول جوائز العجلة
     cursor.execute("""
         CREATE TABLE IF NOT EXISTS wheel_prizes (
@@ -869,6 +895,31 @@ def get_db_connection():
     conn.execute("PRAGMA journal_mode=WAL")
     conn.row_factory = sqlite3.Row
     return conn
+
+def get_bot_setting(setting_key, default_value):
+    """الحصول على إعداد من قاعدة البيانات مع قيمة افتراضية"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT setting_value FROM bot_settings WHERE setting_key = ?", (setting_key,))
+        row = cursor.fetchone()
+        conn.close()
+        
+        if row:
+            value = row['setting_value']
+            # تحويل القيمة حسب نوع القيمة الافتراضية
+            if isinstance(default_value, bool):
+                return value == 'true'
+            elif isinstance(default_value, int):
+                return int(value)
+            elif isinstance(default_value, float):
+                return float(value)
+            else:
+                return value
+        return default_value
+    except Exception as e:
+        print(f"Error getting setting {setting_key}: {e}")
+        return default_value
 
 def get_user(user_id):
     """الحصول على بيانات مستخدم"""
@@ -1696,12 +1747,20 @@ def request_withdrawal(authenticated_user_id=None, is_admin=False):
         if not user_id or amount <= 0:
             return jsonify({'success': False, 'error': 'بيانات غير صالحة'}), 400
         
-        # التحقق من الحد الأدنى للسحب
-        min_withdrawal = 0.1
+        # التحقق من الحد الأدنى للسحب من قاعدة البيانات
+        min_withdrawal = get_bot_setting('min_withdrawal', 0.1)
+        max_withdrawal = get_bot_setting('max_withdrawal', 100.0)
+        
         if amount < min_withdrawal:
             return jsonify({
                 'success': False,
                 'error': f'الحد الأدنى للسحب {min_withdrawal} TON'
+            }), 400
+        
+        if amount > max_withdrawal:
+            return jsonify({
+                'success': False,
+                'error': f'الحد الأقصى للسحب {max_withdrawal} TON'
             }), 400
         
         conn = get_db_connection()
@@ -1956,10 +2015,11 @@ def register_referral():
                 WHERE user_id = ?
             """, (referrer_id,))
             
-            # إضافة لفة مجانية كل 5 إحالات
+            # إضافة لفة مجانية بناءً على عدد الإحالات المطلوب من قاعدة البيانات
+            referrals_per_spin = get_bot_setting('referrals_per_spin', 5)
             cursor.execute("SELECT valid_referrals FROM users WHERE user_id = ?", (referrer_id,))
             result = cursor.fetchone()
-            if result and result['valid_referrals'] % 5 == 0:
+            if result and result['valid_referrals'] % referrals_per_spin == 0:
                 cursor.execute("""
                     UPDATE users 
                     SET available_spins = available_spins + 1
@@ -3467,13 +3527,14 @@ def get_settings():
         
         conn.close()
         
-        # إضافة قيم افتراضية للإعدادات الأخرى
+        # تحويل القيم من string إلى النوع المطلوب
         return jsonify({
             'success': True,
             'data': {
                 'auto_withdrawal_enabled': settings.get('auto_withdrawal_enabled', 'false') == 'true',
-                'min_withdrawal': 0.1,
-                'max_withdrawal': 100.0
+                'min_withdrawal': float(settings.get('min_withdrawal', '0.1')),
+                'max_withdrawal': float(settings.get('max_withdrawal', '100.0')),
+                'referrals_per_spin': int(settings.get('referrals_per_spin', '5'))
             }
         })
         
@@ -3498,6 +3559,27 @@ def update_settings():
                 INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, updated_at)
                 VALUES ('auto_withdrawal_enabled', ?, ?)
             """, (auto_withdrawal, now))
+        
+        # تحديث الحد الأدنى للسحب
+        if 'minWithdrawal' in data:
+            cursor.execute("""
+                INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, updated_at)
+                VALUES ('min_withdrawal', ?, ?)
+            """, (str(data['minWithdrawal']), now))
+        
+        # تحديث الحد الأقصى للسحب
+        if 'maxWithdrawal' in data:
+            cursor.execute("""
+                INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, updated_at)
+                VALUES ('max_withdrawal', ?, ?)
+            """, (str(data['maxWithdrawal']), now))
+        
+        # تحديث عدد الإحالات للفة واحدة
+        if 'referralsPerSpin' in data:
+            cursor.execute("""
+                INSERT OR REPLACE INTO bot_settings (setting_key, setting_value, updated_at)
+                VALUES ('referrals_per_spin', ?, ?)
+            """, (str(data['referralsPerSpin']), now))
         
         conn.commit()
         conn.close()
