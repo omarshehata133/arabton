@@ -826,10 +826,39 @@ function updateUI() {
 // 📊 LOAD INITIAL DATA
 // ═══════════════════════════════════════════════════════════════
 
+async function loadBotSettings() {
+    console.log('⚙️ Loading bot settings...');
+    try {
+        const response = await API.request('/settings', 'GET');
+        
+        if (response && response.success && response.data) {
+            // تحديث إعدادات CONFIG بالقيم من قاعدة البيانات
+            if (response.data.min_withdrawal !== undefined) {
+                window.CONFIG.MIN_WITHDRAWAL_AMOUNT = response.data.min_withdrawal;
+            }
+            if (response.data.referrals_per_spin !== undefined) {
+                window.CONFIG.SPINS_PER_REFERRALS = response.data.referrals_per_spin;
+                window.CONFIG.REFERRALS_FOR_SPIN = response.data.referrals_per_spin;
+            }
+            console.log('✅ Bot settings loaded:', response.data);
+        } else {
+            console.warn('⚠️ Could not load bot settings, using defaults');
+        }
+    } catch (error) {
+        console.error('❌ Error loading bot settings:', error);
+        // استخدام القيم الافتراضية من config.js
+    }
+}
+
 async function loadInitialData() {
     console.log('🔄 Loading initial data modules...');
     
     try {
+        // تحميل الإعدادات أولاً
+        await loadBotSettings().catch(e => {
+            console.warn('⚠️ loadBotSettings failed:', e);
+        });
+        
         // Channels already verified in main init
         await Promise.race([
             Promise.allSettled([

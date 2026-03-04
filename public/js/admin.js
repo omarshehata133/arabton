@@ -1449,6 +1449,7 @@ async function loadSettings() {
             document.getElementById('min-withdrawal').value = result.data.min_withdrawal || 0.1;
             document.getElementById('max-withdrawal').value = result.data.max_withdrawal || 100;
             document.getElementById('auto-withdrawal').checked = result.data.auto_withdrawal_enabled || false;
+            document.getElementById('referrals-per-spin').value = result.data.referrals_per_spin || 5;
             
             console.log('✅ Settings loaded:', result.data);
         } else {
@@ -1456,6 +1457,7 @@ async function loadSettings() {
             document.getElementById('min-withdrawal').value = window.CONFIG?.MIN_WITHDRAWAL_AMOUNT || 0.1;
             document.getElementById('max-withdrawal').value = 100;
             document.getElementById('auto-withdrawal').checked = false;
+            document.getElementById('referrals-per-spin').value = window.CONFIG?.SPINS_PER_REFERRALS || 5;
         }
         
         // تحميل إعدادات التحقق من التعدد
@@ -1478,14 +1480,10 @@ async function loadSettings() {
         document.getElementById('max-withdrawal').value = 100;
         document.getElementById('auto-withdrawal').checked = false;
         document.getElementById('verification-enabled').checked = true;
+        document.getElementById('referrals-per-spin').value = window.CONFIG?.SPINS_PER_REFERRALS || 5;
     }
     
     // باقي الإعدادات
-    document.getElementById('max-daily-spins').value = 10;
-    document.getElementById('spin-cooldown').value = (window.CONFIG?.SPIN_COOLDOWN || 2000) / 1000;
-    document.getElementById('initial-spins').value = 3;
-    document.getElementById('referrals-per-spin').value = window.CONFIG?.SPINS_PER_REFERRALS || 5;
-    document.getElementById('referral-bonus').value = 0.001;
     document.getElementById('rate-limiting').checked = true;
     document.getElementById('event-logging').checked = true;
 }
@@ -1499,11 +1497,7 @@ async function saveSettings() {
             minWithdrawal: parseFloat(document.getElementById('min-withdrawal').value),
             maxWithdrawal: parseFloat(document.getElementById('max-withdrawal').value),
             auto_withdrawal_enabled: document.getElementById('auto-withdrawal').checked,
-            maxDailySpins: parseInt(document.getElementById('max-daily-spins').value),
-            spinCooldown: parseInt(document.getElementById('spin-cooldown').value),
-            initialSpins: parseInt(document.getElementById('initial-spins').value),
             referralsPerSpin: parseInt(document.getElementById('referrals-per-spin').value),
-            referralBonus: parseFloat(document.getElementById('referral-bonus').value),
             rateLimiting: document.getElementById('rate-limiting').checked,
             eventLogging: document.getElementById('event-logging').checked
         };
