@@ -826,7 +826,8 @@ def init_database():
             ('3 TON', 3, 0, '#FFD700', '💰', 6, -1, None),
             ('NFT', 0, 5, '#FF0000', '🎄', 7, 1, 'NFTXmasStocking.json'),
             ('NFT', 0, 0, '#FF69B4', '🧁', 8, 1, 'NFTWhipcupcake.json'),
-            ('8 TON', 8, 0, '#FF0000', '🚀', 9, -1, None)
+            ('8 TON', 8, 0, '#FF0000', '🚀', 9, -1, None),
+            ('PREMIUM', 0, 0, '#00D4FF', '💎', 10, -1, None)
         ]
         for name, value, prob, color, emoji, pos, qty, anim_file in default_prizes:
             cursor.execute("""
@@ -2994,6 +2995,46 @@ def manage_tasks(authenticated_user_id, is_admin, admin_username=None, admin_use
 # 🎁 WHEEL PRIZES MANAGEMENT
 # ═══════════════════════════════════════════════════════════════
 
+@app.route('/api/prizes', methods=['GET'])
+def get_prizes():
+    """جلب جوائز العجلة - متاح للجميع"""
+    try:
+        conn = get_db_connection()
+        cursor = conn.cursor()
+        
+        # Get all active prizes
+        cursor.execute("""
+            SELECT * FROM wheel_prizes 
+            WHERE is_active = 1 
+            ORDER BY position ASC
+        """)
+        prizes = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        
+        # Convert to format expected by wheel
+        formatted_prizes = []
+        for prize in prizes:
+            formatted_prizes.append({
+                'id': prize['id'],
+                'name': prize['name'],
+                'amount': prize['value'],
+                'probability': prize['probability'],
+                'color': prize['color'],
+                'emoji': prize['emoji'],
+                'position': prize.get('position', 0),
+                'quantity_available': prize.get('quantity_available', -1),
+                'quantity_won': prize.get('quantity_won', 0),
+                'animationFile': prize.get('animation_file')
+            })
+        
+        return jsonify({'success': True, 'data': formatted_prizes})
+        
+    except Exception as e:
+        print(f"❌ Error getting prizes: {e}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 @app.route('/api/admin/prizes', methods=['GET', 'POST', 'PUT', 'DELETE'])
 @require_telegram_auth
 @require_admin_auth
@@ -3165,7 +3206,8 @@ def reset_prizes_to_default(authenticated_user_id, is_admin, admin_username=None
             ('2 TON', 2, 0, '#E91E63', '✨', 5),
             ('3 TON', 3, 0, '#FFD700', '💰', 6),
             ('NFT', 0, 0, '#00FFFF', '🖼️', 7),
-            ('8 TON', 8, 0, '#FF0000', '🚀', 8)
+            ('8 TON', 8, 0, '#FF0000', '🚀', 8),
+            ('PREMIUM', 0, 0, '#00D4FF', '💎', 9)
         ]
         
         for name, value, prob, color, emoji, pos in default_prizes:
