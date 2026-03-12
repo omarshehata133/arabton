@@ -587,6 +587,16 @@ async function addPrize() {
             
             // Reload prizes
             await loadPrizes();
+            
+            // 🔄 Reload wheel in main app
+            if (typeof window.reloadWheel === 'function') {
+                try {
+                    await window.reloadWheel();
+                    console.log('✅ Wheel reloaded after adding prize');
+                } catch (e) {
+                    console.warn('⚠️ Could not reload wheel:', e);
+                }
+            }
         } else {
             DebugError.add('❌ Failed to add prize', 'error', result);
             const msg = typeof t === 'function' ? t('prize-add-failed').replace('{error}', result.error || 'خطأ غير معروف') : '❌ فشل إضافة الجائزة: ' + (result.error || 'خطأ غير معروف');
@@ -652,6 +662,16 @@ async function updatePrize() {
             
             // Reload prizes
             await loadPrizes();
+            
+            // 🔄 Reload wheel in main app
+            if (typeof window.reloadWheel === 'function') {
+                try {
+                    await window.reloadWheel();
+                    console.log('✅ Wheel reloaded after updating prize');
+                } catch (e) {
+                    console.warn('⚠️ Could not reload wheel:', e);
+                }
+            }
         } else {
             DebugError.add('❌ Failed to update prize', 'error', result);
             showToast('❌ فشل تحديث الجائزة: ' + (result.error || 'خطأ غير معروف'), 'error');
@@ -685,6 +705,16 @@ async function deletePrize(prizeId) {
             
             // Reload prizes
             await loadPrizes();
+            
+            // 🔄 Reload wheel in main app
+            if (typeof window.reloadWheel === 'function') {
+                try {
+                    await window.reloadWheel();
+                    console.log('✅ Wheel reloaded after deleting prize');
+                } catch (e) {
+                    console.warn('⚠️ Could not reload wheel:', e);
+                }
+            }
         } else {
             DebugError.add('❌ Failed to delete prize', 'error', result);
             showToast('❌ فشل حذف الجائزة: ' + (result.error || 'خطأ غير معروف'), 'error');
@@ -714,6 +744,16 @@ async function resetPrizesToDefault() {
             DebugError.add(`✅ Prizes reset successfully: ${result.count} prizes added`, 'info');
             showToast(`✅ ${result.message}`, 'success');
             await loadPrizes();
+            
+            // 🔄 Reload wheel in main app
+            if (typeof window.reloadWheel === 'function') {
+                try {
+                    await window.reloadWheel();
+                    console.log('✅ Wheel reloaded after resetting prizes');
+                } catch (e) {
+                    console.warn('⚠️ Could not reload wheel:', e);
+                }
+            }
         } else {
             DebugError.add('❌ Failed to reset prizes', 'error', result);
             showToast('❌ فشل إعادة تعيين الجوائز: ' + result.error, 'error');

@@ -486,20 +486,87 @@ document.addEventListener('DOMContentLoaded', async () => {
 // ═══════════════════════════════════════════════════════════════
 
 async function loadWheelPrizes() {
-    // ❌ تعطيل تحميل الجوائز من API - استخدام الافتراضية فقط
-    DebugError.add('🎁 Using default wheel prizes from config.js', 'info', CONFIG.WHEEL_PRIZES);
-    DebugError.add(`✅ Wheel configured with ${CONFIG.WHEEL_PRIZES.length} prizes`, 'info');
-    
-    // التحقق من تطابق الجوائز
-    const totalProbability = CONFIG.WHEEL_PRIZES.reduce((sum, p) => sum + p.probability, 0);
-    DebugError.add(`📊 Total wheel probability: ${totalProbability}%`, 'info');
-    
-    if (Math.abs(totalProbability - 100) > 0.1 && totalProbability !== 0) {
-        DebugError.add(`⚠️ Warning: Total probability is ${totalProbability}%, not 100%`, 'warn');
+    try {
+        DebugError.add('🎁 Loading wheel prizes from API...', 'info');
+        
+        // محاولة تحميل الجوائز من API
+        const response = await fetch(`${CONFIG.API_BASE_URL}/prizes`);
+        const result = await response.json();
+        
+        if (result.success && result.data && result.data.length > 0) {
+            DebugError.add(`✅ Loaded ${result.data.length} prizes from API`, 'info', result.data);
+            
+            // التحقق من تطابق الجوائز
+            const totalProbability = result.data.reduce((sum, p) => sum + p.probability, 0);
+            DebugError.add(`📊 Total wheel probability: ${totalProbability}%`, 'info');
+            
+            if (Math.abs(totalProbability - 100) > 0.1 && totalProbability !== 0) {
+                DebugError.add(`⚠️ Warning: Total probability is ${totalProbability}%, not 100%`, 'warn');
+            }
+            
+            // تحديث CONFIG.WHEEL_PRIZES بالجوائز من API
+            CONFIG.WHEEL_PRIZES = result.data;
+            return result.data;
+        } else {
+            throw new Error('No prizes returned from API');
+        }
+    } catch (error) {
+        // Fallback to default prizes from config.js
+        DebugError.add(`⚠️ Failed to load prizes from API: ${error.message}`, 'warn');
+        DebugError.add('🎁 Using default wheel prizes from config.js', 'info', CONFIG.WHEEL_PRIZES);
+        DebugError.add(`✅ Wheel configured with ${CONFIG.WHEEL_PRIZES.length} prizes`, 'info');
+        
+        // التحقق من تطابق الجوائز
+        const totalProbability = CONFIG.WHEEL_PRIZES.reduce((sum, p) => sum + p.probability, 0);
+        DebugError.add(`📊 Total wheel probability: ${totalProbability}%`, 'info');
+        
+        if (Math.abs(totalProbability - 100) > 0.1 && totalProbability !== 0) {
+            DebugError.add(`⚠️ Warning: Total probability is ${totalProbability}%, not 100%`, 'warn');
+        }
+        
+        return CONFIG.WHEEL_PRIZES;
     }
-    
-    return CONFIG.WHEEL_PRIZES;
 }
+
+/**
+ * 🔄 إعادة تحميل العجلة بعد تعديل الجوائز
+ * يتم استدعاؤها من صفحة الأدمن بعد تعديل الجوائز
+ */
+async function reloadWheel() {
+    try {
+        console.log('🔄 Reloading wheel with updated prizes...');
+        DebugError.add('🔄 Reloading wheel...', 'info');
+        
+        // إعادة تحميل الجوائز من API
+        const prizes = await loadWheelPrizes();
+        
+        if (!prizes || prizes.length === 0) {
+            console.error('❌ No prizes loaded for wheel reload');
+            return false;
+        }
+        
+        // إعادة إنشاء العجلة بالجوائز الجديدة
+        if (wheel) {
+            const wheelCanvas = document.getElementById('wheel-canvas');
+            if (wheelCanvas) {
+                console.log('✅ Recreating wheel with new prizes:', prizes.length);
+                wheel = new WheelOfFortune('wheel-canvas', prizes);
+                DebugError.add(`✅ Wheel reloaded with ${prizes.length} prizes`, 'info');
+                return true;
+            }
+        }
+        
+        console.warn('⚠️ Wheel not initialized yet');
+        return false;
+    } catch (error) {
+        console.error('❌ Error reloading wheel:', error);
+        DebugError.add(`❌ Failed to reload wheel: ${error.message}`, 'error');
+        return false;
+    }
+}
+
+// جعل reloadWheel متاح عالمياً للاستخدام من صفحة الأدمن
+window.reloadWheel = reloadWheel;
 
 // ═══════════════════════════════════════════════════════════════
 // 🔗 REFERRAL HANDLING
