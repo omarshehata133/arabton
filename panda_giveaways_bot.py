@@ -248,6 +248,8 @@ class DatabaseManager:
         """إنشاء اتصال آمن بقاعدة البيانات"""
         conn = sqlite3.connect(self.db_path, timeout=30.0)
         conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout = 30000")
+        conn.execute("PRAGMA synchronous = NORMAL")
         conn.row_factory = sqlite3.Row
         return conn
     
@@ -495,10 +497,6 @@ class DatabaseManager:
     def create_or_update_user(self, user_id: int, username: str, full_name: str, 
                             referrer_id: Optional[int] = None, user_lang_code: Optional[str] = None) -> User:
         """إنشاء أو تحديث مستخدم"""
-        conn = self.get_connection()
-        cursor = conn.cursor()
-        now = datetime.now().isoformat()
-        
         # تحديد اللغة بناءً على إعدادات Telegram
         # ru -> ru, en -> en, ar -> ar, غير ذلك -> ar (افتراضي)
         lang_to_save = 'ar'  # افتراضي
@@ -509,59 +507,76 @@ class DatabaseManager:
                 lang_to_save = 'en'
             elif user_lang_code.startswith('ar'):
                 lang_to_save = 'ar'
-        
-        # التحقق من وجود المستخدم
-        cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
-        existing = cursor.fetchone()
-        
-        if existing:
-            # تحديث المستخدم الموجود (لا نغير اللغة إذا كانت محفوظة مسبقاً)
-            cursor.execute("""
-                UPDATE users 
-                SET username = ?, full_name = ?, last_active = ?
-                WHERE user_id = ?
-            """, (username, full_name, now, user_id))
-            conn.commit()
-            
-            user = User(
-                user_id=existing['user_id'],
-                username=username,
-                full_name=full_name,
-                balance=existing['balance'],
-                total_spins=existing['total_spins'],
-                available_spins=existing['available_spins'],
-                total_referrals=existing['total_referrals'],
-                referrer_id=existing['referrer_id'],
-                created_at=existing['created_at'],
-                last_active=now,
-                is_banned=bool(existing['is_banned'])
-            )
-        else:
-            # إنشاء مستخدم جديد مع حفظ اللغة
-            cursor.execute("""
-                INSERT INTO users (user_id, username, full_name, referrer_id, created_at, last_active, language)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            """, (user_id, username, full_name, referrer_id, now, now, lang_to_save))
-            conn.commit()
-            
-            # ملاحظة: لا نسجل الإحالة هنا - سيتم تسجيلها في check_subscription_callback
-            # بعد التحقق من الاشتراك في القنوات والتحقق من الجهاز
-            if referrer_id:
-                logger.info(f"📝 Referrer saved for new user: {referrer_id} -> {user_id} (pending verification)")
-            
-            logger.info(f"🌐 User {user_id} language set to: {lang_to_save} (from Telegram: {user_lang_code})")
-            
-            user = User(
-                user_id=user_id,
-                username=username,
-                full_name=full_name,
-                referrer_id=referrer_id,
-                created_at=now,
-                last_active=now
-            )
-        
-        conn.close()
-        return user
+
+        max_retries = 5
+        for attempt in range(1, max_retries + 1):
+            conn = self.get_connection()
+            try:
+                cursor = conn.cursor()
+                now = datetime.now().isoformat()
+
+                # التحقق من وجود المستخدم
+                cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+                existing = cursor.fetchone()
+
+                if existing:
+                    # تحديث المستخدم الموجود (لا نغير اللغة إذا كانت محفوظة مسبقاً)
+                    cursor.execute("""
+                        UPDATE users 
+                        SET username = ?, full_name = ?, last_active = ?
+                        WHERE user_id = ?
+                    """, (username, full_name, now, user_id))
+                    conn.commit()
+
+                    return User(
+                        user_id=existing['user_id'],
+                        username=username,
+                        full_name=full_name,
+                        balance=existing['balance'],
+                        total_spins=existing['total_spins'],
+                        available_spins=existing['available_spins'],
+                        total_referrals=existing['total_referrals'],
+                        referrer_id=existing['referrer_id'],
+                        created_at=existing['created_at'],
+                        last_active=now,
+                        is_banned=bool(existing['is_banned'])
+                    )
+
+                # إنشاء مستخدم جديد مع حفظ اللغة
+                cursor.execute("""
+                    INSERT INTO users (user_id, username, full_name, referrer_id, created_at, last_active, language)
+                    VALUES (?, ?, ?, ?, ?, ?, ?)
+                """, (user_id, username, full_name, referrer_id, now, now, lang_to_save))
+                conn.commit()
+
+                # ملاحظة: لا نسجل الإحالة هنا - سيتم تسجيلها في check_subscription_callback
+                # بعد التحقق من الاشتراك في القنوات والتحقق من الجهاز
+                if referrer_id:
+                    logger.info(f"📝 Referrer saved for new user: {referrer_id} -> {user_id} (pending verification)")
+
+                logger.info(f"🌐 User {user_id} language set to: {lang_to_save} (from Telegram: {user_lang_code})")
+
+                return User(
+                    user_id=user_id,
+                    username=username,
+                    full_name=full_name,
+                    referrer_id=referrer_id,
+                    created_at=now,
+                    last_active=now
+                )
+            except sqlite3.OperationalError as e:
+                conn.rollback()
+                if "database is locked" in str(e).lower() and attempt < max_retries:
+                    backoff_seconds = 0.25 * attempt
+                    logger.warning(
+                        f"Database locked while creating/updating user {user_id}. "
+                        f"Retry {attempt}/{max_retries} after {backoff_seconds:.2f}s"
+                    )
+                    time.sleep(backoff_seconds)
+                    continue
+                raise
+            finally:
+                conn.close()
     
     def get_user(self, user_id: int) -> Optional[User]:
         """الحصول على بيانات مستخدم"""
@@ -6041,6 +6056,20 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             parse_mode=ParseMode.HTML
         )
 
+
+async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
+    """معالجة الأخطاء العامة في telegram handlers"""
+    logger.error("Unhandled telegram handler exception", exc_info=context.error)
+
+    if isinstance(update, Update) and update.effective_message:
+        try:
+            await update.effective_message.reply_text(
+                "❌ حدث خطأ مؤقت أثناء تنفيذ الطلب. يرجى المحاولة مرة أخرى بعد قليل.",
+                parse_mode=ParseMode.HTML
+            )
+        except Exception as notify_error:
+            logger.error(f"Failed to notify user after handler error: {notify_error}")
+
 # ═══════════════════════════════════════════════════════════════
 # �🚀 MAIN FUNCTION
 # ═══════════════════════════════════════════════════════════════
@@ -6134,6 +6163,9 @@ def main():
         logger.info("✅ Application built successfully")
         print("✅ Application built successfully")
         sys.stdout.flush()
+
+        application.add_error_handler(global_error_handler)
+        logger.info("✅ Global error handler registered")
     except Exception as build_error:
         logger.error(f"❌ Failed to build application: {build_error}")
         import traceback
