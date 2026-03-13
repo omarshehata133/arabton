@@ -232,7 +232,8 @@ function getReferrerIdFromUrl(){
             method: 'POST',
             headers: { 
               'Content-Type': 'application/json',
-              'Accept': 'application/json'
+              'Accept': 'application/json',
+              'X-Telegram-Init-Data': window.Telegram?.WebApp?.initData || ''
             },
             body: JSON.stringify(payload)
           });
