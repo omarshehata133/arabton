@@ -13,7 +13,7 @@
 ✅ نفس القنوات الإجبارية
 ✅ نفس اللفات والرصيد
 """
-from flask import Flask, send_from_directory, request, jsonify, session
+from flask import Flask, send_from_directory, request, jsonify, session, g
 from flask_cors import CORS
 import os
 import sys
@@ -24,9 +24,11 @@ import subprocess
 import random
 import hashlib
 import secrets
+import hmac
 import requests  # لجلب سعر TON
 import jwt  # For JWT tokens
 from functools import wraps
+from urllib.parse import parse_qsl, unquote, urlparse
 
 # إضافة المسار الحالي لـ 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -60,18 +62,69 @@ def calculate_egp_amount(ton_amount):
 BOT_TOKEN = os.environ.get('BOT_TOKEN')
 ADMIN_IDS = [1797127532, 1856926531, 1039319795, 241576585]
 
+DEFAULT_ALLOWED_FRONTEND_ORIGINS = [
+    'https://arabton.vercel.app',
+    'http://localhost:3000',
+    'http://127.0.0.1:5000',
+    'http://localhost:5000'
+]
+
+
+def normalize_origin(value):
+    """Normalize Origin/Referer values to scheme://host[:port]."""
+    if not value:
+        return None
+
+    try:
+        parsed = urlparse(value)
+        if not parsed.scheme or not parsed.netloc:
+            return None
+        return f"{parsed.scheme.lower()}://{parsed.netloc.lower()}"
+    except Exception:
+        return None
+
+
+def load_allowed_frontend_origins():
+    configured = os.environ.get('ALLOWED_FRONTEND_ORIGINS', '')
+    raw_origins = [item.strip() for item in configured.split(',') if item.strip()] or DEFAULT_ALLOWED_FRONTEND_ORIGINS
+    normalized = [normalize_origin(origin) for origin in raw_origins]
+    return tuple(origin for origin in normalized if origin)
+
+
+ALLOWED_FRONTEND_ORIGINS = load_allowed_frontend_origins()
+
+# مفتاح داخلي للطلبات الموثوقة بين البوت وواجهة الـ API
+INTERNAL_API_KEY = os.environ.get('INTERNAL_API_KEY')
+if not INTERNAL_API_KEY and BOT_TOKEN:
+    INTERNAL_API_KEY = hashlib.sha256(f"{BOT_TOKEN}:internal-api".encode()).hexdigest()
+
 # 🔐 ADMIN LOGIN CREDENTIALS (من متغيرات البيئة)
-ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'OmarShehata@123')
+ADMIN_USERNAME = os.environ.get('ADMIN_USERNAME', 'admin')
 ADMIN_PASSWORD_HASH = os.environ.get('ADMIN_PASSWORD_HASH')
-# إذا لم يكن هناك password hash، استخدم كلمة سر افتراضية (للتطوير فقط)
-if not ADMIN_PASSWORD_HASH:
-    # Default password: Ommsaa#@123 (يجب تغييرها في الإنتاج!)
-    ADMIN_PASSWORD_HASH = hashlib.sha256('Ommsaa#@123'.encode()).hexdigest()
-    print("⚠️ WARNING: Using default admin password! Set ADMIN_PASSWORD_HASH environment variable.")
+ADMIN_AUTH_CONFIGURED = bool(os.environ.get('ADMIN_USERNAME') and ADMIN_PASSWORD_HASH)
+if not ADMIN_AUTH_CONFIGURED:
+    print("⚠️ WARNING: Admin login disabled until ADMIN_USERNAME and ADMIN_PASSWORD_HASH are configured.")
 
 # JWT Secret Key
 JWT_SECRET = os.environ.get('JWT_SECRET', secrets.token_urlsafe(32))
 ADMIN_SESSION_DURATION = timedelta(hours=24)  # صلاحية الجلسة 24 ساعة
+
+
+def is_internal_api_request():
+    provided_key = request.headers.get('X-Internal-Api-Key', '')
+    return bool(INTERNAL_API_KEY and provided_key and hmac.compare_digest(provided_key, INTERNAL_API_KEY))
+
+
+def is_allowed_frontend_request():
+    normalized_origin = normalize_origin(request.headers.get('Origin'))
+    if normalized_origin and normalized_origin in ALLOWED_FRONTEND_ORIGINS:
+        return True
+
+    normalized_referer = normalize_origin(request.headers.get('Referer'))
+    if normalized_referer and normalized_referer in ALLOWED_FRONTEND_ORIGINS:
+        return True
+
+    return False
 
 # ═══════════════════════════════════════════════════════════════
 # 🛡️ ADMIN PROTECTION DECORATOR
@@ -102,6 +155,9 @@ def require_admin_auth(f):
     """
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if getattr(g, 'is_internal_request', False):
+            return f(*args, **kwargs)
+
         # التحقق من Telegram admin (من require_telegram_auth)
         if not kwargs.get('is_admin', False):
             return jsonify({
@@ -112,9 +168,6 @@ def require_admin_auth(f):
         
         # التحقق من Admin Login Token
         admin_token = request.headers.get('X-Admin-Token')
-        if not admin_token:
-            admin_token = request.json.get('admin_token') if request.is_json else None
-        
         if not admin_token:
             return jsonify({
                 'success': False,
@@ -132,6 +185,13 @@ def require_admin_auth(f):
                 'message': 'جلسة المسؤول منتهية أو غير صحيحة',
                 'require_login': True
             }), 401
+
+        if str(token_payload.get('user_id')) != str(kwargs.get('authenticated_user_id')):
+            return jsonify({
+                'success': False,
+                'error': 'Forbidden',
+                'message': 'جلسة المسؤول لا تخص المستخدم الحالي'
+            }), 403
         
         # إضافة بيانات Admin للـ kwargs
         kwargs['admin_username'] = token_payload.get('username')
@@ -159,9 +219,7 @@ def validate_telegram_init_data(init_data_str):
     يمنع أي محاولة للتلاعب بـ user_id
     """
     try:
-        import hmac
         import json
-        from urllib.parse import parse_qsl, unquote
         
         if not init_data_str or not BOT_TOKEN:
             print("⚠️ Missing init_data or BOT_TOKEN")
@@ -220,7 +278,7 @@ def validate_telegram_init_data(init_data_str):
         ).hexdigest()
         
         # مقارنة الـ hashes
-        if calculated_hash != received_hash:
+        if not hmac.compare_digest(calculated_hash, received_hash):
             print(f"⚠️ Hash mismatch! Auth failed.")
             return None
         
@@ -255,8 +313,14 @@ def require_telegram_auth(f):
     
     @wraps(f)
     def decorated_function(*args, **kwargs):
+        if getattr(g, 'is_internal_request', False):
+            kwargs['authenticated_user_id'] = None
+            kwargs['is_admin'] = True
+            return f(*args, **kwargs)
+
         # 🔐 التحقق الإجباري من init_data للجميع (بدون استثناءات)
         init_data = None
+        json_data = request.get_json(silent=True) or {}
         
         # محاولة الحصول من headers (الأفضل)
         init_data = request.headers.get('X-Telegram-Init-Data')
@@ -267,7 +331,7 @@ def require_telegram_auth(f):
         
         # محاولة الحصول من JSON body
         if not init_data and request.is_json:
-            init_data = request.json.get('init_data')
+            init_data = json_data.get('init_data')
         
         if not init_data:
             return jsonify({
@@ -414,10 +478,7 @@ CORS(app,
     resources={
         r"/api/*": {
             "origins": [
-                'https://arabton.vercel.app',
-                'http://localhost:3000',
-                'http://127.0.0.1:5000',
-                'http://localhost:5000'
+                *ALLOWED_FRONTEND_ORIGINS
             ],
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": [
@@ -433,6 +494,28 @@ CORS(app,
         }
     }
 )  # السماح بـ CORS من المواقع المحددة
+
+
+@app.before_request
+def protect_api_surface():
+    """Reject direct API traffic that does not come from the trusted frontend or internal bot."""
+    g.is_internal_request = False
+
+    if request.method == 'OPTIONS' or not request.path.startswith('/api/'):
+        return None
+
+    if is_internal_api_request():
+        g.is_internal_request = True
+        return None
+
+    if is_allowed_frontend_request():
+        return None
+
+    return jsonify({
+        'success': False,
+        'error': 'Forbidden',
+        'message': 'هذا الـ API متاح فقط من الواجهة الرسمية أو من الطلبات الداخلية الموثوقة'
+    }), 403
 
 # ═══════════════════════════════════════════════════════════════
 # 🤖 BOT STARTUP IN BACKGROUND
@@ -1082,6 +1165,12 @@ def admin_login(authenticated_user_id=None, is_admin=False):
     2. Username & Password صحيح
     """
     try:
+        if not ADMIN_AUTH_CONFIGURED:
+            return jsonify({
+                'success': False,
+                'error': 'تم تعطيل تسجيل دخول الأدمن حتى يتم ضبط متغيرات البيئة بشكل آمن'
+            }), 503
+
         # التحقق من أن المستخدم أدمن من ADMIN_IDS
         if not is_admin:
             return jsonify({
@@ -1089,7 +1178,7 @@ def admin_login(authenticated_user_id=None, is_admin=False):
                 'error': 'غير مسموح! هذه الصفحة للمسؤولين فقط'
             }), 403
         
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         username = data.get('username', '').strip()
         password = data.get('password', '').strip()
         
@@ -1578,14 +1667,13 @@ def get_user_completed_tasks(user_id, authenticated_user_id=None, is_admin=False
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/tasks/<int:task_id>/verify', methods=['POST'])
-def verify_task_completion(task_id):
+@require_telegram_auth
+def verify_task_completion(task_id, authenticated_user_id=None, is_admin=False):
     """التحقق من إتمام المهمة عبر البوت"""
     try:
-        data = request.get_json()
-        user_id = data.get('user_id')
-        
+        user_id = authenticated_user_id
         if not user_id:
-            return jsonify({'success': False, 'message': 'معرف المستخدم مطلوب'}), 400
+            return jsonify({'success': False, 'message': 'معرف المستخدم غير موثق'}), 401
         
         # جلب بيانات المهمة
         conn = get_db_connection()
@@ -1838,7 +1926,9 @@ def request_withdrawal(authenticated_user_id=None, is_admin=False):
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/withdrawals', methods=['GET'])
-def get_all_withdrawals():
+@require_telegram_auth
+@require_admin_auth
+def get_all_withdrawals(authenticated_user_id=None, is_admin=False, admin_username=None, admin_user_id=None):
     """الحصول على جميع طلبات السحب (للأدمن)"""
     try:
         status = request.args.get('status', 'all')  # all, pending, completed, rejected
@@ -1883,12 +1973,13 @@ def get_all_withdrawals():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/withdrawal/approve', methods=['POST'])
-def approve_withdrawal():
+@require_telegram_auth
+@require_admin_auth
+def approve_withdrawal(authenticated_user_id=None, is_admin=False, admin_username=None, admin_user_id=None):
     """قبول طلب سحب"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         withdrawal_id = data.get('withdrawal_id')
-        admin_id = data.get('admin_id')
         tx_hash = data.get('tx_hash', '')
         
         if not withdrawal_id:
@@ -1896,6 +1987,16 @@ def approve_withdrawal():
         
         conn = get_db_connection()
         cursor = conn.cursor()
+
+        cursor.execute("SELECT status FROM withdrawals WHERE id = ?", (withdrawal_id,))
+        withdrawal = cursor.fetchone()
+        if not withdrawal:
+            conn.close()
+            return jsonify({'success': False, 'error': 'طلب السحب غير موجود'}), 404
+
+        if withdrawal['status'] != 'pending':
+            conn.close()
+            return jsonify({'success': False, 'error': 'تمت معالجة طلب السحب بالفعل'}), 409
         
         # تحديث حالة الطلب
         cursor.execute("""
@@ -1904,8 +2005,8 @@ def approve_withdrawal():
                 processed_at = CURRENT_TIMESTAMP,
                 processed_by = ?,
                 tx_hash = ?
-            WHERE id = ?
-        """, (admin_id, tx_hash, withdrawal_id))
+            WHERE id = ? AND status = 'pending'
+        """, (admin_user_id or authenticated_user_id, tx_hash, withdrawal_id))
         
         conn.commit()
         conn.close()
@@ -1922,12 +2023,13 @@ def approve_withdrawal():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/withdrawal/reject', methods=['POST'])
-def reject_withdrawal():
+@require_telegram_auth
+@require_admin_auth
+def reject_withdrawal(authenticated_user_id=None, is_admin=False, admin_username=None, admin_user_id=None):
     """رفض طلب سحب وإرجاع المبلغ"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         withdrawal_id = data.get('withdrawal_id')
-        admin_id = data.get('admin_id')
         reason = data.get('reason', 'لم يتم تحديد سبب')
         
         if not withdrawal_id:
@@ -1943,6 +2045,12 @@ def reject_withdrawal():
         if not withdrawal:
             conn.close()
             return jsonify({'success': False, 'error': 'طلب السحب غير موجود'}), 404
+
+        cursor.execute('SELECT status FROM withdrawals WHERE id = ?', (withdrawal_id,))
+        current_status = cursor.fetchone()
+        if not current_status or current_status['status'] != 'pending':
+            conn.close()
+            return jsonify({'success': False, 'error': 'تمت معالجة طلب السحب بالفعل'}), 409
         
         # إرجاع المبلغ للمستخدم
         cursor.execute("""
@@ -1958,8 +2066,8 @@ def reject_withdrawal():
                 processed_at = CURRENT_TIMESTAMP,
                 processed_by = ?,
                 rejection_reason = ?
-            WHERE id = ?
-        """, (admin_id, reason, withdrawal_id))
+            WHERE id = ? AND status = 'pending'
+        """, (admin_user_id or authenticated_user_id, reason, withdrawal_id))
         
         conn.commit()
         conn.close()
@@ -1976,12 +2084,13 @@ def reject_withdrawal():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/referral/register', methods=['POST'])
-def register_referral():
+@require_telegram_auth
+def register_referral(authenticated_user_id=None, is_admin=False):
     """تسجيل إحالة جديدة مع تحسينات أداء"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         referrer_id = data.get('referrer_id')
-        referred_id = data.get('referred_id')
+        referred_id = authenticated_user_id
         
         if not referrer_id or not referred_id:
             return jsonify({'success': False, 'error': 'Missing parameters'}), 400
@@ -2047,11 +2156,12 @@ def register_referral():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/task/complete', methods=['POST'])
-def complete_task():
+@require_telegram_auth
+def complete_task(authenticated_user_id=None, is_admin=False):
     """إكمال مهمة"""
     try:
-        data = request.get_json()
-        user_id = data.get('user_id')
+        data = request.get_json(silent=True) or {}
+        user_id = authenticated_user_id
         task_id = data.get('task_id')
         
         if not user_id or not task_id:
@@ -2148,14 +2258,14 @@ def get_required_channels():
         return jsonify({'success': False, 'message': str(e)}), 500
 
 @app.route('/api/verify-channels', methods=['POST'])
-def verify_all_channels():
+@require_telegram_auth
+def verify_all_channels(authenticated_user_id=None, is_admin=False):
     """التحقق من اشتراك المستخدم في جميع القنوات الإجبارية"""
     try:
-        data = request.get_json()
-        user_id = data.get('user_id')
+        user_id = authenticated_user_id
         
         if not user_id:
-            return jsonify({'success': False, 'message': 'معرف المستخدم مطلوب'}), 400
+            return jsonify({'success': False, 'message': 'معرف المستخدم غير موثق'}), 401
         
         # جلب القنوات النشطة
         conn = get_db_connection()
@@ -2246,18 +2356,30 @@ def submit_fingerprint():
     """استقبال وحفظ بصمة الجهاز من صفحة التحقق"""
     # معالجة preflight request
     if request.method == 'OPTIONS':
+        if not is_allowed_frontend_request():
+            return jsonify({'ok': False, 'error': 'Forbidden origin'}), 403
+
         response = jsonify({'status': 'ok'})
-        response.headers.add('Access-Control-Allow-Origin', '*')
-        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept')
+        response.headers.add('Access-Control-Allow-Origin', request.headers.get('Origin'))
+        response.headers.add('Access-Control-Allow-Headers', 'Content-Type,Accept,X-Telegram-Init-Data')
         response.headers.add('Access-Control-Allow-Methods', 'POST,OPTIONS')
         return response, 200
     
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         user_id = data.get('user_id')
         fp_token = data.get('fp_token')
         fingerprint = data.get('fingerprint')
         meta = data.get('meta', {})
+
+        if not getattr(g, 'is_internal_request', False):
+            init_data = request.headers.get('X-Telegram-Init-Data')
+            verified_user = validate_telegram_init_data(init_data)
+            if not verified_user:
+                return jsonify({'ok': False, 'error': 'Unauthorized'}), 401
+
+            if str(verified_user.get('user_id')) != str(user_id):
+                return jsonify({'ok': False, 'error': 'User mismatch'}), 403
         
         # Logging للطلب
         print(f"📥 Fingerprint request received:")
@@ -2541,7 +2663,13 @@ def submit_fingerprint():
 def create_verification_token():
     """إنشاء token للتحقق من الجهاز"""
     try:
-        data = request.get_json()
+        if not getattr(g, 'is_internal_request', False):
+            return jsonify({
+                'success': False,
+                'error': 'Forbidden'
+            }), 403
+
+        data = request.get_json(silent=True) or {}
         user_id = data.get('user_id')
         
         if not user_id:
@@ -2661,6 +2789,16 @@ def get_verification_token(authenticated_user_id=None, is_admin=False):
 def get_verification_status(user_id):
     """التحقق من حالة تحقق المستخدم"""
     try:
+        if not getattr(g, 'is_internal_request', False):
+            init_data = request.headers.get('X-Telegram-Init-Data') or request.args.get('init_data')
+            verified_user = validate_telegram_init_data(init_data)
+            if not verified_user:
+                return jsonify({'success': False, 'error': 'Unauthorized'}), 401
+
+            verified_user_id = verified_user.get('user_id')
+            if verified_user_id != user_id and verified_user_id not in ADMIN_IDS:
+                return jsonify({'success': False, 'error': 'Forbidden'}), 403
+
         conn = get_db_connection()
         cursor = conn.cursor()
         
@@ -3239,12 +3377,11 @@ def reset_prizes_to_default(authenticated_user_id, is_admin, admin_username=None
 def add_spins_to_user(authenticated_user_id, is_admin, admin_username=None, admin_user_id=None):
     """إضافة لفات لمستخدم معين"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         username = data.get('username')
         spins_count = data.get('spins_count')
-        admin_id = data.get('admin_id')
         
-        if not all([username, spins_count, admin_id]):
+        if not all([username, spins_count]):
             return jsonify({'success': False, 'error': 'Missing parameters'}), 400
         
         # Remove @ if present
@@ -3585,10 +3722,12 @@ def get_settings():
         return jsonify({'success': False, 'error': str(e)}), 500
 
 @app.route('/api/settings', methods=['POST'])
-def update_settings():
+@require_telegram_auth
+@require_admin_auth
+def update_settings(authenticated_user_id=None, is_admin=False, admin_username=None, admin_user_id=None):
     """تحديث إعدادات البوت"""
     try:
-        data = request.get_json()
+        data = request.get_json(silent=True) or {}
         
         conn = get_db_connection()
         cursor = conn.cursor()

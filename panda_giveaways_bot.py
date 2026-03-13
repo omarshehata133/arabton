@@ -103,6 +103,19 @@ load_dotenv()
 BOT_TOKEN = os.getenv("BOT_TOKEN")
 BOT_USERNAME = os.getenv("BOT_USERNAME", "Arab_ton_bot")
 MINI_APP_URL = os.getenv("MINI_APP_URL", "https://arabton.vercel.app")
+INTERNAL_API_KEY = os.getenv("INTERNAL_API_KEY")
+
+if not INTERNAL_API_KEY and BOT_TOKEN:
+    INTERNAL_API_KEY = hashlib.sha256(f"{BOT_TOKEN}:internal-api".encode()).hexdigest()
+
+
+def internal_api_headers(extra_headers: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    headers: Dict[str, str] = {}
+    if INTERNAL_API_KEY:
+        headers["X-Internal-Api-Key"] = INTERNAL_API_KEY
+    if extra_headers:
+        headers.update(extra_headers)
+    return headers
 
 # 👥 الأدمن (يتم قراءتهم من .env)
 ADMIN_IDS_STR = os.getenv("ADMIN_IDS", "")
@@ -1687,7 +1700,7 @@ async def check_and_validate_referral(user_id: int, update: Update = None) -> bo
         
         # 1. التحقق من حالة التحقق من الجهاز
         verify_status_url = f"{API_BASE_URL}/verification/status/{user_id}"
-        verify_resp = req.get(verify_status_url, timeout=5)
+        verify_resp = req.get(verify_status_url, headers=internal_api_headers(), timeout=5)
         
         device_verified = False
         if verify_resp.ok:
@@ -1898,7 +1911,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             
             # التحقق من حالة نظام التحقق
             settings_url = f"{API_BASE_URL}/admin/verification-settings?admin_id={user_id}"
-            settings_resp = req.get(settings_url, timeout=5)
+            settings_resp = req.get(settings_url, headers=internal_api_headers(), timeout=5)
             
             verification_enabled = True
             if settings_resp.ok:
@@ -1908,7 +1921,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             # إذا كان التحقق مفعلاً، نتحقق من حالة المستخدم
             if verification_enabled:
                 verify_status_url = f"{API_BASE_URL}/verification/status/{user_id}"
-                verify_resp = req.get(verify_status_url, timeout=5)
+                verify_resp = req.get(verify_status_url, headers=internal_api_headers(), timeout=5)
                 
                 if verify_resp.ok:
                     verify_data = verify_resp.json()
@@ -1918,7 +1931,12 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
                         # المستخدم غير متحقق - إرسال رسالة التحقق
                         # إنشاء token للتحقق (يُحفظ في السيرفر فقط)
                         token_url = f"{API_BASE_URL}/verification/create-token"
-                        token_resp = req.post(token_url, json={'user_id': user_id}, timeout=5)
+                        token_resp = req.post(
+                            token_url,
+                            json={'user_id': user_id},
+                            headers=internal_api_headers(),
+                            timeout=5
+                        )
                         
                         if token_resp.ok:
                             token_data = token_resp.json()
@@ -2309,7 +2327,7 @@ async def device_verified_callback(update: Update, context: ContextTypes.DEFAULT
         
         # التحقق من حالة التحقق من الجهاز
         verify_status_url = f"{API_BASE_URL}/verification/status/{user_id}"
-        verify_resp = req.get(verify_status_url, timeout=5)
+        verify_resp = req.get(verify_status_url, headers=internal_api_headers(), timeout=5)
         
         if not verify_resp.ok:
             await query.answer("⚠️ خطأ في التحقق من الجهاز، حاول مرة أخرى", show_alert=True)
@@ -2720,7 +2738,10 @@ async def admin_panel_callback(update: Update, context: ContextTypes.DEFAULT_TYP
     
     # الحصول على حالة التحقق من التعدد
     try:
-        response = requests.get(f"{API_BASE_URL}/admin/verification-settings?admin_id={user_id}")
+        response = requests.get(
+            f"{API_BASE_URL}/admin/verification-settings?admin_id={user_id}",
+            headers=internal_api_headers()
+        )
         verification_data = response.json()
         verification_enabled = verification_data.get('verification_enabled', True)
     except:
@@ -2859,7 +2880,10 @@ async def toggle_verification_callback(update: Update, context: ContextTypes.DEF
     
     try:
         # الحصول على الحالة الحالية
-        response = requests.get(f"{API_BASE_URL}/admin/verification-settings?admin_id={user_id}")
+        response = requests.get(
+            f"{API_BASE_URL}/admin/verification-settings?admin_id={user_id}",
+            headers=internal_api_headers()
+        )
         current_data = response.json()
         current_state = current_data.get('verification_enabled', True)
         new_state = not current_state
@@ -2867,7 +2891,8 @@ async def toggle_verification_callback(update: Update, context: ContextTypes.DEF
         # تحديث الإعداد
         update_response = requests.post(
             f"{API_BASE_URL}/admin/verification-settings",
-            json={'admin_id': user_id, 'enabled': new_state}
+            json={'admin_id': user_id, 'enabled': new_state},
+            headers=internal_api_headers()
         )
         
         if update_response.json().get('success'):
@@ -5779,7 +5804,12 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
             
             # إنشاء token مؤقت للتحقق
             token_url = f"{API_BASE_URL}/verification/create-token"
-            token_resp = req.post(token_url, json={'user_id': user_id}, timeout=5)
+            token_resp = req.post(
+                token_url,
+                json={'user_id': user_id},
+                headers=internal_api_headers(),
+                timeout=5
+            )
             
             fp_token = None
             if token_resp.ok:
@@ -5794,7 +5824,12 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
                 'meta': meta
             }
             
-            api_resp = req.post(api_url, json=payload, timeout=10)
+            api_resp = req.post(
+                api_url,
+                json=payload,
+                headers=internal_api_headers(),
+                timeout=10
+            )
             
             if api_resp.ok:
                 result = api_resp.json()
