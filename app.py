@@ -126,6 +126,20 @@ def is_allowed_frontend_request():
 
     return False
 
+
+def has_valid_telegram_request_context():
+    """Allow Telegram-signed requests even when WebView omits Origin/Referer headers."""
+    init_data = request.headers.get('X-Telegram-Init-Data') or request.args.get('init_data')
+
+    if not init_data and request.is_json:
+        payload = request.get_json(silent=True) or {}
+        init_data = payload.get('init_data')
+
+    if not init_data:
+        return False
+
+    return bool(validate_telegram_init_data(init_data))
+
 # ═══════════════════════════════════════════════════════════════
 # 🛡️ ADMIN PROTECTION DECORATOR
 # ═══════════════════════════════════════════════════════════════
@@ -509,6 +523,9 @@ def protect_api_surface():
         return None
 
     if is_allowed_frontend_request():
+        return None
+
+    if has_valid_telegram_request_context():
         return None
 
     return jsonify({
