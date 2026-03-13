@@ -1001,8 +1001,7 @@ async function approveWithdrawal(id) {
     try {
         showLoading();
         const result = await API.request('/withdrawal/approve', 'POST', {
-            withdrawal_id: id,
-            admin_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 1797127532
+            withdrawal_id: id
         });
         hideLoading();
         
@@ -1030,7 +1029,6 @@ async function rejectWithdrawal(id) {
         showLoading();
         const result = await API.request('/withdrawal/reject', 'POST', {
             withdrawal_id: id,
-            admin_id: window.Telegram?.WebApp?.initDataUnsafe?.user?.id || 1797127532,
             reason: reason || 'لم يتم تحديد سبب'
         });
         hideLoading();

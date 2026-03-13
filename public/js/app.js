@@ -37,6 +37,15 @@ let wheel = null;
 localStorage.removeItem('wheel-config-cache');
 sessionStorage.clear();
 
+function getTelegramInitData() {
+    return window.Telegram?.WebApp?.initData || window._restored_init_data || '';
+}
+
+function buildTelegramAuthHeaders(headers = {}) {
+    const initData = getTelegramInitData();
+    return initData ? { ...headers, 'X-Telegram-Init-Data': initData } : headers;
+}
+
 function showLoadingWithMessage(message) {
     const loadingOverlay = document.getElementById('loading-overlay');
     if (loadingOverlay) {
@@ -310,7 +319,9 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (userId && !isAdmin) {
             try {
                 showLoadingWithMessage('🔐 جاري التحقق من الحساب...');
-                const verifyStatusResp = await fetch(`${CONFIG.API_BASE_URL}/verification/status/${userId}`);
+                const verifyStatusResp = await fetch(`${CONFIG.API_BASE_URL}/verification/status/${userId}`, {
+                    headers: buildTelegramAuthHeaders()
+                });
                 const verifyData = await verifyStatusResp.json();
                 
                 if (!verifyData.verified) {
@@ -634,12 +645,11 @@ async function registerPendingReferral() {
         // تسجيل الإحالة
         const response = await fetch(`${CONFIG.API_BASE_URL}/referral/register`, {
             method: 'POST',
-            headers: {
+            headers: buildTelegramAuthHeaders({
                 'Content-Type': 'application/json'
-            },
+            }),
             body: JSON.stringify({
-                referrer_id: referralData.referrer_id,
-                referred_id: referralData.referred_id
+                referrer_id: referralData.referrer_id
             }),
             signal: controller.signal
         });
@@ -686,12 +696,11 @@ async function handleReferral() {
                 // تسجيل الإحالة
                 const response = await fetch(`${CONFIG.API_BASE_URL}/referral/register`, {
                     method: 'POST',
-                    headers: {
+                    headers: buildTelegramAuthHeaders({
                         'Content-Type': 'application/json'
-                    },
+                    }),
                     body: JSON.stringify({
-                        referrer_id: referrerId,
-                        referred_id: parseInt(currentUserId)
+                        referrer_id: referrerId
                     })
                 });
                 
@@ -740,9 +749,9 @@ async function loadUserData() {
             
             await fetch(`${CONFIG.API_BASE_URL}/user/${userId}/update-profile`, {
                 method: 'POST',
-                headers: {
+                headers: buildTelegramAuthHeaders({
                     'Content-Type': 'application/json'
-                },
+                }),
                 body: JSON.stringify({
                     username: username,
                     full_name: fullName
