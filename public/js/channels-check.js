@@ -7,6 +7,10 @@ console.log('📂 channels-check.js: Starting module definition...');
 
 const ChannelsCheck = {
     channels: [],
+
+    getTelegramInitData() {
+        return window.Telegram?.WebApp?.initData || window._restored_init_data || '';
+    },
     
     async init() {
         console.log('📢 Initializing Required Channels Check...');
@@ -20,12 +24,15 @@ const ChannelsCheck = {
     async loadChannels() {
         try {
             const apiUrl = `${CONFIG.API_BASE_URL}/required-channels`;
+            const initData = this.getTelegramInitData();
             console.log('📡 Fetching required channels from API:', apiUrl);
             if (typeof ChannelsLogger !== 'undefined') {
                 ChannelsLogger.log('loadChannels() - Fetching from: ' + apiUrl);
             }
             
-            const response = await fetch(apiUrl);
+            const response = await fetch(apiUrl, {
+                headers: initData ? { 'X-Telegram-Init-Data': initData } : {}
+            });
             const data = await response.json();
             
             console.log('📦 API Response:', data);
@@ -96,9 +103,13 @@ const ChannelsCheck = {
                     const timeoutId = setTimeout(() => controller.abort(), 20000); // 20 ثانية
                     
                     const apiUrl = `${CONFIG.API_BASE_URL}/verify-channels`;
+                    const initData = this.getTelegramInitData();
                     response = await fetch(apiUrl, {
                         method: 'POST',
-                        headers: {'Content-Type': 'application/json'},
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Telegram-Init-Data': initData
+                        },
                         body: JSON.stringify({user_id: userId}),
                         signal: controller.signal
                     });
