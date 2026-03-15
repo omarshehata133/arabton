@@ -1683,6 +1683,94 @@ def get_user_completed_tasks(user_id, authenticated_user_id=None, is_admin=False
         print(f"Error in get_user_completed_tasks: {e}")
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+def normalize_channel_identifier(channel_username):
+    """Normalize channel username/id for Telegram API chat_id input."""
+    if not channel_username:
+        return None
+
+    value = str(channel_username).strip()
+    if not value:
+        return None
+
+    # Support links like https://t.me/username
+    if 't.me/' in value:
+        value = value.split('t.me/', 1)[1].split('?', 1)[0].strip('/')
+
+    # Preserve numeric/supergroup ids like -100xxxxxxxxxx
+    if value.startswith('-100') or value.startswith('@'):
+        return value
+
+    return f"@{value}"
+
+
+def verify_channel_subscription(user_id, channel_username):
+    """Verify user subscription using Telegram Bot API. Returns (bool, message)."""
+    chat_id = normalize_channel_identifier(channel_username)
+    if not chat_id:
+        return False, '❌ بيانات القناة غير صالحة'
+
+    try:
+        telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
+        verify_response = requests.post(telegram_url, json={
+            'chat_id': chat_id,
+            'user_id': int(user_id)
+        }, timeout=12)
+
+        if not verify_response.ok:
+            return False, '❌ تعذر التحقق من الاشتراك حالياً'
+
+        verify_data = verify_response.json()
+        if not verify_data.get('ok'):
+            return False, '❌ تعذر التحقق من الاشتراك، جرّب مرة أخرى'
+
+        member_status = verify_data.get('result', {}).get('status', 'left')
+        is_subscribed = member_status in ['creator', 'administrator', 'member', 'restricted']
+
+        if not is_subscribed:
+            return False, '❌ يجب الاشتراك في القناة أولاً ثم إعادة المحاولة'
+
+        return True, None
+    except Exception as e:
+        print(f"Error in verify_channel_subscription: user={user_id}, channel={chat_id}, error={e}")
+        return False, '❌ تعذر التحقق من الاشتراك حالياً'
+
+
+def verify_bot_admin_in_channel(channel_username):
+    """Verify bot has admin rights in target channel. Returns (bool, message)."""
+    chat_id = normalize_channel_identifier(channel_username)
+    if not chat_id:
+        return False, '❌ اسم/معرف القناة غير صالح'
+
+    try:
+        bot_user_id = int(str(BOT_TOKEN).split(':', 1)[0])
+    except Exception:
+        return False, '❌ BOT_TOKEN غير صالح للتحقق من صلاحيات البوت'
+
+    try:
+        telegram_url = f"https://api.telegram.org/bot{BOT_TOKEN}/getChatMember"
+        verify_response = requests.post(telegram_url, json={
+            'chat_id': chat_id,
+            'user_id': bot_user_id
+        }, timeout=12)
+
+        if not verify_response.ok:
+            return False, '❌ تعذر التحقق من صلاحيات البوت في القناة'
+
+        verify_data = verify_response.json()
+        if not verify_data.get('ok'):
+            return False, '❌ البوت ليس موجوداً/مشرفاً في القناة، أضفه كمشرف أولاً'
+
+        bot_status = verify_data.get('result', {}).get('status', 'left')
+        is_admin = bot_status in ['creator', 'administrator']
+        if not is_admin:
+            return False, '❌ البوت ليس مشرفاً في هذه القناة، أضفه كمشرف أولاً'
+
+        return True, None
+    except Exception as e:
+        print(f"Error in verify_bot_admin_in_channel: channel={chat_id}, error={e}")
+        return False, '❌ تعذر التحقق من صلاحيات البوت في القناة'
+
 @app.route('/api/tasks/<int:task_id>/verify', methods=['POST'])
 @require_telegram_auth
 def verify_task_completion(task_id, authenticated_user_id=None, is_admin=False):
@@ -1720,37 +1808,15 @@ def verify_task_completion(task_id, authenticated_user_id=None, is_admin=False):
             conn.close()
             return jsonify({'success': False, 'message': 'لقد أكملت هذه المهمة من قبل'})
         
-        # إذا كانت قناة، التحقق من الاشتراك عبر البوت
+        # إذا كانت قناة، التحقق الصارم من الاشتراك عبر Telegram API (بدون أي fallback)
         if task_type == 'channel' and channel_username:
-            try:
-                # إرسال طلب للبوت للتحقق من الاشتراك مع fallback
-                try:
-                    import requests
-                    bot_url = 'http://localhost:8081/verify-subscription'
-                    verify_response = requests.post(bot_url, json={
-                        'user_id': user_id,
-                        'channel_username': channel_username
-                    }, timeout=15)  # زيادة timeout
-                    
-                    verify_data = verify_response.json()
-                    
-                    if not verify_data.get('is_subscribed', False):
-                        conn.close()
-                        return jsonify({
-                            'success': False, 
-                            'message': '❌ لم يتم العثور على اشتراكك! تأكد من الاشتراك في القناة أولاً'
-                        })
-                        
-                except (requests.exceptions.RequestException, requests.exceptions.Timeout, ConnectionError) as e:
-                    # في حالة عدم توفر البوت، نسمح بالمتابعة مؤقتاً
-                    print(f"⚠️ Bot unavailable for verification (task {task_id}): {e}")
-                    print(f"📝 Allowing task completion without bot verification for user {user_id}")
-                    # نسمح بإتمام المهمة بدون التحقق من البوت
-                    
-            except Exception as e:
-                print(f"Error verifying subscription: {e}")
-                # نسمح بإتمام المهمة في حالة الخطأ
-                print(f"📝 Allowing task completion due to verification error for user {user_id}")
+            is_subscribed, verification_msg = verify_channel_subscription(user_id, channel_username)
+            if not is_subscribed:
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'message': verification_msg or '❌ لم يتم العثور على اشتراكك! تأكد من الاشتراك في القناة أولاً'
+                }), 403
         
         # تسجيل إتمام المهمة
         now = datetime.now().isoformat()
@@ -2188,54 +2254,68 @@ def complete_task(authenticated_user_id=None, is_admin=False):
         cursor = conn.cursor()
         now = datetime.now().isoformat()
         
-        try:
-            # التحقق من أن المهمة موجودة ونشطة
-            cursor.execute("SELECT * FROM tasks WHERE id = ? AND is_active = 1", (task_id,))
-            task = cursor.fetchone()
-            
-            if not task:
-                conn.close()
-                return jsonify({'success': False, 'error': 'Task not found'}), 404
-            
-            # تسجيل إنجاز المهمة
-            cursor.execute("""
-                INSERT INTO user_tasks (user_id, task_id, completed_at, verified)
-                VALUES (?, ?, ?, 1)
-            """, (user_id, task_id, now))
-            
-            # إضافة المكافأة للرصيد
-            cursor.execute("""
-                UPDATE users 
-                SET balance = balance + ?
-                WHERE user_id = ?
-            """, (task['reward_amount'], user_id))
-            
-            # التحقق من عدد المهام المكتملة
-            cursor.execute("""
-                SELECT COUNT(*) as count FROM user_tasks WHERE user_id = ?
-            """, (user_id,))
-            tasks_count = cursor.fetchone()['count']
-            
-            # كل 5 مهمات = لفة إضافية
-            if tasks_count % 5 == 0:
-                cursor.execute("""
-                    UPDATE users 
-                    SET available_spins = available_spins + 1
-                    WHERE user_id = ?
-                """, (user_id,))
-            
-            conn.commit()
+        # التحقق من أن المهمة موجودة ونشطة
+        cursor.execute("""
+            SELECT id, task_type, channel_username
+            FROM tasks
+            WHERE id = ? AND is_active = 1
+        """, (task_id,))
+        task = cursor.fetchone()
+
+        if not task:
             conn.close()
-            
-            return jsonify({
-                'success': True,
-                'message': 'Task completed successfully',
-                'reward': task['reward_amount']
-            })
-            
-        except sqlite3.IntegrityError:
+            return jsonify({'success': False, 'error': 'Task not found'}), 404
+
+        # التحقق من عدم إتمام المهمة سابقاً
+        cursor.execute("""
+            SELECT id FROM user_tasks
+            WHERE user_id = ? AND task_id = ? AND verified = 1
+        """, (user_id, task_id))
+        if cursor.fetchone():
             conn.close()
             return jsonify({'success': False, 'error': 'Task already completed'}), 400
+
+        # منع إكمال مهام القنوات بدون اشتراك حقيقي
+        if task['task_type'] == 'channel' and task['channel_username']:
+            is_subscribed, verification_msg = verify_channel_subscription(user_id, task['channel_username'])
+            if not is_subscribed:
+                conn.close()
+                return jsonify({
+                    'success': False,
+                    'error': verification_msg or '❌ يجب الاشتراك في القناة أولاً'
+                }), 403
+
+        # تسجيل إنجاز المهمة
+        cursor.execute("""
+            INSERT INTO user_tasks (user_id, task_id, completed_at, verified)
+            VALUES (?, ?, ?, 1)
+        """, (user_id, task_id, now))
+
+        # كل 5 مهمات = لفة إضافية
+        cursor.execute("""
+            SELECT COUNT(*) as count FROM user_tasks
+            WHERE user_id = ? AND verified = 1
+        """, (user_id,))
+        tasks_count = cursor.fetchone()['count']
+
+        new_spin = False
+        if tasks_count % 5 == 0:
+            cursor.execute("""
+                UPDATE users
+                SET available_spins = available_spins + 1
+                WHERE user_id = ?
+            """, (user_id,))
+            new_spin = True
+
+        conn.commit()
+        conn.close()
+
+        return jsonify({
+            'success': True,
+            'message': 'Task completed successfully',
+            'new_spin_awarded': new_spin,
+            'completed_count': tasks_count
+        })
             
     except Exception as e:
         print(f"Error in complete_task: {e}")
@@ -3003,26 +3083,14 @@ def manage_tasks(authenticated_user_id, is_admin, admin_username=None, admin_use
                     'message': 'اسم المهمة والرابط مطلوبان'
                 }), 400
             
-            # إذا كان نوع المهمة قناة، التحقق من أن البوت مشرف
+            # إذا كان نوع المهمة قناة، التحقق الصارم من أن البوت مشرف
             if task_type == 'channel' and channel_username:
-                try:
-                    import requests
-                    bot_url = 'http://localhost:8081/check-bot-admin'
-                    check_response = requests.post(bot_url, json={
-                        'channel_username': channel_username
-                    }, timeout=5)
-                    
-                    check_data = check_response.json()
-                    
-                    if not check_data.get('is_admin', False):
-                        return jsonify({
-                            'success': False,
-                            'message': '❌ البوت ليس مشرف في هذه القناة! أضف البوت كمشرف أولاً'
-                        }), 400
-                except Exception as e:
-                    print(f"Error checking bot admin: {e}")
-                    # نكمل حتى لو فشل التحقق
-                    pass
+                is_bot_admin, admin_msg = verify_bot_admin_in_channel(channel_username)
+                if not is_bot_admin:
+                    return jsonify({
+                        'success': False,
+                        'message': admin_msg or '❌ البوت ليس مشرف في هذه القناة! أضف البوت كمشرف أولاً'
+                    }), 400
             
             conn = get_db_connection()
             cursor = conn.cursor()
@@ -3077,26 +3145,14 @@ def manage_tasks(authenticated_user_id, is_admin, admin_username=None, admin_use
                     'message': 'اسم المهمة والرابط مطلوبان'
                 }), 400
             
-            # إذا كان نوع المهمة قناة، التحقق من أن البوت مشرف
+            # إذا كان نوع المهمة قناة، التحقق الصارم من أن البوت مشرف
             if task_type == 'channel' and channel_username:
-                try:
-                    import requests
-                    bot_url = 'http://localhost:8081/check-bot-admin'
-                    check_response = requests.post(bot_url, json={
-                        'channel_username': channel_username
-                    }, timeout=5)
-                    
-                    check_data = check_response.json()
-                    
-                    if not check_data.get('is_admin', False):
-                        return jsonify({
-                            'success': False,
-                            'message': '❌ البوت ليس مشرف في هذه القناة! أضف البوت كمشرف أولاً'
-                        }), 400
-                except Exception as e:
-                    print(f"Error checking bot admin: {e}")
-                    # نكمل حتى لو فشل التحقق
-                    pass
+                is_bot_admin, admin_msg = verify_bot_admin_in_channel(channel_username)
+                if not is_bot_admin:
+                    return jsonify({
+                        'success': False,
+                        'message': admin_msg or '❌ البوت ليس مشرف في هذه القناة! أضف البوت كمشرف أولاً'
+                    }), 400
             
             conn = get_db_connection()
             cursor = conn.cursor()
