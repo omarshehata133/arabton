@@ -190,6 +190,13 @@ const API = {
                 if (!response.ok) {
                     const errorText = await response.text();
                     DebugError.add(`❌ API Error Response: ${response.status}`, 'error', errorText);
+                    let backendMessage = '';
+                    try {
+                        const errorData = JSON.parse(errorText || '{}');
+                        backendMessage = errorData.message || errorData.error || '';
+                    } catch (_) {
+                        backendMessage = '';
+                    }
                     
                     // 🚨 معالجة خاصة لأخطاء 401 Unauthorized
                     if (response.status === 401) {
@@ -233,6 +240,9 @@ const API = {
                         continue;
                     }
                     
+                    if (backendMessage) {
+                        throw new Error(backendMessage);
+                    }
                     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
                 }
                 

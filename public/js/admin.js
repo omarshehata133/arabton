@@ -1469,7 +1469,7 @@ async function createChannel() {
     } catch (error) {
         hideLoading();
         console.error('❌ Error creating channel:', error);
-        showToast('❌ خطأ في الاتصال بالسيرفر', 'error');
+        showToast(`❌ ${error?.message || 'خطأ في الاتصال بالسيرفر'}`, 'error');
     }
 }
 
