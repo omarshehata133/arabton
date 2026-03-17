@@ -2959,35 +2959,23 @@ def manage_channels(authenticated_user_id, is_admin, admin_username=None, admin_
         
         elif request.method == 'POST':
             # Add new channel
-            data = request.get_json()
-            channel_id = data.get('channel_id')
-            channel_name = data.get('channel_name')
-            channel_url = data.get('channel_url')
+            data = request.get_json(silent=True) or {}
+            channel_id = (data.get('channel_id') or '').strip()
+            channel_name = (data.get('channel_name') or '').strip()
+            channel_url = (data.get('channel_url') or '').strip()
             is_active = 1 if data.get('is_active', True) else 0
-            admin_id = data.get('admin_id', 1797127532)
+            admin_id = admin_user_id or authenticated_user_id
             
             if not all([channel_id, channel_name, channel_url]):
                 return jsonify({'success': False, 'message': 'جميع الحقول مطلوبة'}), 400
             
-            # التحقق من أن البوت مشرف في القناة
-            try:
-                import requests as req
-                bot_url = 'http://localhost:8081/check-bot-admin'
-                check_response = req.post(bot_url, json={
-                    'channel_username': channel_id
-                }, timeout=5)
-                
-                check_data = check_response.json()
-                
-                if not check_data.get('is_admin', False):
-                    return jsonify({
-                        'success': False,
-                        'message': '❌ البوت ليس مشرف في هذه القناة! أضف البوت كمشرف أولاً'
-                    }), 400
-            except Exception as e:
-                print(f"Error checking bot admin: {e}")
-                # نكمل حتى لو فشل التحقق
-                pass
+            # التحقق الصارم من أن البوت مشرف في القناة
+            is_bot_admin, admin_msg = verify_bot_admin_in_channel(channel_id)
+            if not is_bot_admin:
+                return jsonify({
+                    'success': False,
+                    'message': admin_msg or '❌ البوت ليس مشرفاً في هذه القناة! أضف البوت كمشرف أولاً'
+                }), 400
             
             conn = get_db_connection()
             cursor = conn.cursor()
