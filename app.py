@@ -2960,11 +2960,13 @@ def manage_channels(authenticated_user_id, is_admin, admin_username=None, admin_
         elif request.method == 'POST':
             # Add new channel
             data = request.get_json(silent=True) or {}
-            channel_id = (data.get('channel_id') or '').strip()
+            raw_channel_id = (data.get('channel_id') or '').strip()
             channel_name = (data.get('channel_name') or '').strip()
             channel_url = (data.get('channel_url') or '').strip()
             is_active = 1 if data.get('is_active', True) else 0
             admin_id = admin_user_id or authenticated_user_id
+
+            channel_id = normalize_channel_identifier(raw_channel_id)
             
             if not all([channel_id, channel_name, channel_url]):
                 return jsonify({'success': False, 'message': 'جميع الحقول مطلوبة'}), 400
@@ -2980,6 +2982,57 @@ def manage_channels(authenticated_user_id, is_admin, admin_username=None, admin_
             conn = get_db_connection()
             cursor = conn.cursor()
             now = datetime.now().isoformat()
+
+            # تطبيع القيم القديمة (@name / name) لمنع تكرار وهمي
+            alt_channel_id = channel_id[1:] if channel_id.startswith('@') else f"@{channel_id}"
+
+            # 1) نفس المعرف بعد التطبيع
+            cursor.execute("""
+                SELECT id, channel_id, is_active
+                FROM required_channels
+                WHERE LOWER(channel_id) = LOWER(?)
+                LIMIT 1
+            """, (channel_id,))
+            exact_row = cursor.fetchone()
+
+            if exact_row:
+                if int(exact_row['is_active']) == 1:
+                    conn.close()
+                    return jsonify({'success': False, 'message': 'القناة موجودة بالفعل'}), 400
+
+                cursor.execute("""
+                    UPDATE required_channels
+                    SET channel_name = ?, channel_url = ?, is_active = ?, added_by = ?, added_at = ?
+                    WHERE id = ?
+                """, (channel_name, channel_url, is_active, admin_id, now, exact_row['id']))
+
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'message': 'تمت إعادة تفعيل القناة بنجاح'})
+
+            # 2) نسخة قديمة بنفس القناة لكن بدون/مع @
+            cursor.execute("""
+                SELECT id, channel_id, is_active
+                FROM required_channels
+                WHERE LOWER(channel_id) = LOWER(?)
+                LIMIT 1
+            """, (alt_channel_id,))
+            legacy_row = cursor.fetchone()
+
+            if legacy_row:
+                if int(legacy_row['is_active']) == 1:
+                    conn.close()
+                    return jsonify({'success': False, 'message': 'القناة موجودة بالفعل'}), 400
+
+                cursor.execute("""
+                    UPDATE required_channels
+                    SET channel_id = ?, channel_name = ?, channel_url = ?, is_active = ?, added_by = ?, added_at = ?
+                    WHERE id = ?
+                """, (channel_id, channel_name, channel_url, is_active, admin_id, now, legacy_row['id']))
+
+                conn.commit()
+                conn.close()
+                return jsonify({'success': True, 'message': 'تمت إعادة تفعيل القناة بنجاح'})
             
             try:
                 cursor.execute("""
