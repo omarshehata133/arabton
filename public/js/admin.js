@@ -2027,10 +2027,10 @@ async function createTask() {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// 📤 EXPORT TO BACKEND (OLD CODE - WILL BE REMOVED LATER)
+// 📤 EXPORT TO BACKEND (LEGACY PROMPT FLOW - NOT USED)
 // ═══════════════════════════════════════════════════════════════
 
-async function openAddChannelModal() {
+async function openAddChannelPromptLegacy() {
     const channelId = prompt('معرف القناة (مثال: @ChannelName):');
     if (!channelId) return;
     
@@ -2054,11 +2054,11 @@ async function openAddChannelModal() {
             showToast('✅ تم إضافة القناة بنجاح!', 'success');
             loadChannels();
         } else {
-            showToast('❌ فشل إضافة القناة', 'error');
+            showToast(`❌ ${result.message || 'فشل إضافة القناة'}`, 'error');
         }
     } catch (error) {
         hideLoading();
-        showToast('❌ خطأ في الاتصال', 'error');
+        showToast(`❌ ${error?.message || 'خطأ في الاتصال'}`, 'error');
         console.error(error);
     }
 }
