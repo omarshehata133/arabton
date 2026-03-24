@@ -7,6 +7,7 @@
 """
 
 import sqlite3
+import re
 from typing import Dict, Optional
 
 # ═══════════════════════════════════════════════════════════
@@ -486,6 +487,15 @@ class BotI18n:
     def __init__(self, db_path: str):
         self.db_path = db_path
         self.default_lang = 'ar'
+        # Telegram may reject custom emoji tags (<tg-emoji>) with Document_invalid.
+        # Keep the visible emoji while removing only the HTML tag wrapper.
+        self._tg_emoji_pattern = re.compile(r"<tg-emoji\b[^>]*>(.*?)</tg-emoji>", re.IGNORECASE | re.DOTALL)
+
+    def _sanitize_telegram_html(self, text: str) -> str:
+        """Strip unsupported Telegram custom-emoji tags while preserving inner content."""
+        if not isinstance(text, str) or '<tg-emoji' not in text:
+            return text
+        return self._tg_emoji_pattern.sub(r"\1", text)
     
     def get_user_language(self, user_id: int) -> str:
         """جلب لغة المستخدم من قاعدة البيانات"""
@@ -559,6 +569,9 @@ class BotI18n:
                 text = text.format(**kwargs)
             except:
                 pass
+
+        # تنقية وسوم tg-emoji غير المدعومة لتجنب BadRequest: Document_invalid
+        text = self._sanitize_telegram_html(text)
         
         return text
     
