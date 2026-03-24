@@ -245,7 +245,26 @@ class User:
     last_withdrawal_time: Optional[str] = None
 
 # ═══════════════════════════════════════════════════════════════
-# 🗄️ DATABASE MANAGER
+# �️ SAFE MESSAGE EDITING HELPER
+# ═══════════════════════════════════════════════════════════════
+
+async def safe_edit_message_text(query, text: str, **kwargs):
+    """
+    Safely edit callback query message, handling "Message is not modified" errors.
+    This prevents crashes when the message content hasn't actually changed.
+    """
+    try:
+        await query.edit_message_text(text, **kwargs)
+    except BadRequest as br:
+        # Ignore "Message is not modified" error - it's harmless
+        if "Message is not modified" not in str(br):
+            logger.warning(f"BadRequest while editing message: {br}")
+        # Silently ignore - message is already in the desired state
+    except Exception as e:
+        logger.error(f"Error editing message: {e}")
+
+# ═══════════════════════════════════════════════════════════════
+# �🗄️ DATABASE MANAGER
 # ═══════════════════════════════════════════════════════════════
 
 class DatabaseManager:
@@ -293,11 +312,6 @@ class DatabaseManager:
                         logger.warning(f"⚠️ Could not add column {table_name}.{column_name}: {e}")
                 finally:
                     alter_conn.close()
-                    
-                # Small delay between operations to let database settle
-                import time
-                time.sleep(0.1)
-                
             except Exception as e:
                 logger.error(f"❌ Error ensuring column {table_name}.{column_def.split()[0]}: {e}")
         
@@ -559,75 +573,66 @@ class DatabaseManager:
             elif user_lang_code.startswith('ar'):
                 lang_to_save = 'ar'
 
-        max_retries = 5
-        for attempt in range(1, max_retries + 1):
-            conn = self.get_connection()
-            try:
-                cursor = conn.cursor()
-                now = datetime.now().isoformat()
+        conn = self.get_connection()
+        try:
+            cursor = conn.cursor()
+            now = datetime.now().isoformat()
 
-                # التحقق من وجود المستخدم
-                cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
-                existing = cursor.fetchone()
+            # التحقق من وجود المستخدم
+            cursor.execute("SELECT * FROM users WHERE user_id = ?", (user_id,))
+            existing = cursor.fetchone()
 
-                if existing:
-                    # تحديث المستخدم الموجود (لا نغير اللغة إذا كانت محفوظة مسبقاً)
-                    cursor.execute("""
-                        UPDATE users 
-                        SET username = ?, full_name = ?, last_active = ?
-                        WHERE user_id = ?
-                    """, (username, full_name, now, user_id))
-                    conn.commit()
-
-                    return User(
-                        user_id=existing['user_id'],
-                        username=username,
-                        full_name=full_name,
-                        balance=existing['balance'],
-                        total_spins=existing['total_spins'],
-                        available_spins=existing['available_spins'],
-                        total_referrals=existing['total_referrals'],
-                        referrer_id=existing['referrer_id'],
-                        created_at=existing['created_at'],
-                        last_active=now,
-                        is_banned=bool(existing['is_banned'])
-                    )
-
-                # إنشاء مستخدم جديد مع حفظ اللغة
+            if existing:
+                # تحديث المستخدم الموجود (لا نغير اللغة إذا كانت محفوظة مسبقاً)
                 cursor.execute("""
-                    INSERT INTO users (user_id, username, full_name, referrer_id, created_at, last_active, language)
-                    VALUES (?, ?, ?, ?, ?, ?, ?)
-                """, (user_id, username, full_name, referrer_id, now, now, lang_to_save))
+                    UPDATE users 
+                    SET username = ?, full_name = ?, last_active = ?
+                    WHERE user_id = ?
+                """, (username, full_name, now, user_id))
                 conn.commit()
 
-                # ملاحظة: لا نسجل الإحالة هنا - سيتم تسجيلها في check_subscription_callback
-                # بعد التحقق من الاشتراك في القنوات والتحقق من الجهاز
-                if referrer_id:
-                    logger.info(f"📝 Referrer saved for new user: {referrer_id} -> {user_id} (pending verification)")
-
-                logger.info(f"🌐 User {user_id} language set to: {lang_to_save} (from Telegram: {user_lang_code})")
-
                 return User(
-                    user_id=user_id,
+                    user_id=existing['user_id'],
                     username=username,
                     full_name=full_name,
-                    referrer_id=referrer_id,
-                    created_at=now,
-                    last_active=now
+                    balance=existing['balance'],
+                    total_spins=existing['total_spins'],
+                    available_spins=existing['available_spins'],
+                    total_referrals=existing['total_referrals'],
+                    referrer_id=existing['referrer_id'],
+                    created_at=existing['created_at'],
+                    last_active=now,
+                    is_banned=bool(existing['is_banned'])
                 )
-            except sqlite3.OperationalError as e:
-                conn.rollback()
-                if "database is locked" in str(e).lower() and attempt < max_retries:
-                    backoff_seconds = 0.25 * attempt
-                    logger.warning(
-                        f"Database locked while creating/updating user {user_id}. "
-                        f"Retry {attempt}/{max_retries} after {backoff_seconds:.2f}s"
-                    )
-                    time.sleep(backoff_seconds)
-                    continue
-                raise
-            finally:
-                conn.close()
+
+            # إنشاء مستخدم جديد مع حفظ اللغة
+            cursor.execute("""
+                INSERT INTO users (user_id, username, full_name, referrer_id, created_at, last_active, language)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user_id, username, full_name, referrer_id, now, now, lang_to_save))
+            conn.commit()
+
+            # ملاحظة: لا نسجل الإحالة هنا - سيتم تسجيلها في check_subscription_callback
+            # بعد التحقق من الاشتراك في القنوات والتحقق من الجهاز
+            if referrer_id:
+                logger.info(f"📝 Referrer saved for new user: {referrer_id} -> {user_id} (pending verification)")
+
+            logger.info(f"🌐 User {user_id} language set to: {lang_to_save} (from Telegram: {user_lang_code})")
+
+            return User(
+                user_id=user_id,
+                username=username,
+                full_name=full_name,
+                referrer_id=referrer_id,
+                created_at=now,
+                last_active=now
+            )
+        except sqlite3.OperationalError as e:
+            # Database is locked - log and let it propagate after SQLite's 30sec timeout
+            logger.error(f"❌ Database operation timeout for user {user_id}: {e}")
+            raise
+        finally:
+            conn.close()
     
     def get_user(self, user_id: int) -> Optional[User]:
         """الحصول على بيانات مستخدم"""
@@ -3272,9 +3277,6 @@ async def restore_backup_handler(update: Update, context: ContextTypes.DEFAULT_T
             repair_conn.close()
             logger.info("✅ Database validation passed")
             
-            # انتظار قصير للسماح للملفات بالتزامن
-            time.sleep(1)
-            
         except Exception as validate_err:
             logger.warning(f"⚠️ Database validation warning (will try schema migration anyway): {validate_err}")
 
@@ -3565,7 +3567,8 @@ async def check_subscription_callback(update: Update, context: ContextTypes.DEFA
                 )]
             ]
             
-            await query.edit_message_text(
+            await safe_edit_message_text(
+                query,
                 subscription_text,
                 parse_mode=ParseMode.HTML,
                 reply_markup=InlineKeyboardMarkup(keyboard)
@@ -6240,7 +6243,7 @@ def main():
         
         # انتظار قصير للتأكد من تشغيل الخادم
         import time
-        time.sleep(2)
+        time.sleep(1)
         
         # فحص بسيط لحالة الخادم
         try:
