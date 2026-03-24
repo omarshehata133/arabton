@@ -21,7 +21,6 @@ Created by: Omar Panda
 
 import os
 import sys
-import json
 import logging
 import asyncio
 import hashlib
@@ -6186,6 +6185,32 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
         )
 
 
+# ═══════════════════════════════════════════════════════════════
+# 🧡 KEEP-ALIVE MECHANISM (Render Service Timeout Prevention)
+# ═══════════════════════════════════════════════════════════════
+# الهدف: منع توقف الخدمة بعد 30 دقيقة خمول على Render free tier
+# المبدأ: إرسال ping لـ /health كل 25 دقيقة لإبقاء الخدمة مستيقظة
+
+async def keep_service_alive(context: ContextTypes.DEFAULT_TYPE = None):
+    """
+    حفظ الخدمة من السكون على Render free tier
+    يتم استدعاء هذه الدالة كل 25 دقيقة
+    """
+    flask_base_url = os.environ.get('FLASK_BASE_URL', 'http://localhost:10000')
+    health_url = f"{flask_base_url}/api/ping"
+    
+    try:
+        import requests as req
+        response = req.get(health_url, timeout=5)
+        if response.ok:
+            logger.info(f"✅ Keep-alive ping successful ({response.status_code})")
+        else:
+            logger.warning(f"⚠️ Keep-alive ping returned {response.status_code}")
+    except Exception as e:
+        logger.warning(f"⚠️ Keep-alive ping failed: {e}")
+        # لا نرفع الخطأ - هذا job اختياري للحفاظ على الخدمة
+
+
 async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
     """معالجة الأخطاء العامة في telegram handlers"""
     logger.error("Unhandled telegram handler exception", exc_info=context.error)
@@ -6295,6 +6320,24 @@ def main():
 
         application.add_error_handler(global_error_handler)
         logger.info("✅ Global error handler registered")
+        
+        # ═══════════════════════════════════════════════════════════════
+        # 🧡 Schedule keep-alive job (Render service timeout prevention)
+        # ═══════════════════════════════════════════════════════════════
+        # جدولة ping تلقائي كل 25 دقيقة لمنع توقف الخدمة
+        try:
+            application.job_queue.run_repeating(
+                keep_service_alive, 
+                interval=25*60,  # كل 25 دقيقة
+                first=5  # ابدأ بعد 5 ثوان من التشغيل
+            )
+            logger.info("✅ Keep-alive job scheduled (every 25 minutes)")
+            print("✅ Keep-alive job scheduled to prevent service timeout")
+            sys.stdout.flush()
+        except Exception as keep_alive_error:
+            logger.warning(f"⚠️ Failed to schedule keep-alive job: {keep_alive_error}")
+            logger.warning("⚠️ Service may timeout after 30 minutes of inactivity")
+        
     except Exception as build_error:
         logger.error(f"❌ Failed to build application: {build_error}")
         import traceback
