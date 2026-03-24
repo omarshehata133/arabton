@@ -270,6 +270,16 @@ class DatabaseManager:
         """إنشاء جداول قاعدة البيانات"""
         conn = self.get_connection()
         cursor = conn.cursor()
+
+        def ensure_column(table_name: str, column_def: str):
+            """Add missing column safely for backward compatibility with old backups."""
+            try:
+                cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_def}")
+                conn.commit()
+                logger.info(f"✅ Added missing column {table_name}.{column_def.split()[0]}")
+            except sqlite3.OperationalError:
+                # Column already exists (or cannot be added) -> ignore for compatibility.
+                pass
         
         # جدول المستخدمين
         cursor.execute("""
@@ -296,12 +306,15 @@ class DatabaseManager:
             )
         """)
         
-        # إضافة عمود tickets للمستخدمين القدامى
-        try:
-            cursor.execute("ALTER TABLE users ADD COLUMN tickets INTEGER DEFAULT 0")
-            conn.commit()
-        except sqlite3.OperationalError:
-            pass  # العمود موجود بالفعل
+        # ترقية schema للمستخدمين القدامى (نسخ احتياطية قديمة)
+        ensure_column('users', 'tickets INTEGER DEFAULT 0')
+        ensure_column('users', 'valid_referrals INTEGER DEFAULT 0')
+        ensure_column('users', "language TEXT DEFAULT 'ar'")
+        ensure_column('users', 'ban_reason TEXT')
+        ensure_column('users', 'is_device_verified INTEGER DEFAULT 0')
+        ensure_column('users', 'last_withdrawal_time TEXT')
+        ensure_column('users', 'ton_wallet TEXT')
+        ensure_column('users', 'vodafone_number TEXT')
         
         # جدول الإحالات
         cursor.execute("""
@@ -317,6 +330,11 @@ class DatabaseManager:
                 UNIQUE(referrer_id, referred_id)
             )
         """)
+
+        # ترقية schema للإحالات القديمة
+        ensure_column('referrals', 'validated_at TEXT')
+        ensure_column('referrals', 'channels_checked INTEGER DEFAULT 0')
+        ensure_column('referrals', 'device_verified INTEGER DEFAULT 0')
         
         # جدول لفات العجلة
         cursor.execute("""
@@ -3195,6 +3213,18 @@ async def restore_backup_handler(update: Update, context: ContextTypes.DEFAULT_T
         
         # استبدال قاعدة البيانات
         shutil.copy2(temp_backup_path, DATABASE_PATH)
+
+        # حذف ملفات WAL/SHM القديمة بعد الاستبدال لتفادي أي تعارض
+        for suffix in ('-wal', '-shm'):
+            stale_file = f"{DATABASE_PATH}{suffix}"
+            if os.path.exists(stale_file):
+                try:
+                    os.remove(stale_file)
+                except Exception:
+                    pass
+
+        # ترقية schema مباشرة بعد الاستعادة حتى تعمل النسخ القديمة مع الكود الحالي
+        db.init_database()
         
         # حذف الملف المؤقت
         os.remove(temp_backup_path)
