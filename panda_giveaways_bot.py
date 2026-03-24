@@ -6191,7 +6191,7 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
 # الهدف: منع توقف الخدمة بعد 30 دقيقة خمول على Render free tier
 # المبدأ: إرسال ping لـ /api/ping كل 25 دقيقة لإبقاء الخدمة مستيقظة
 
-KEEP_ALIVE_INTERVAL_SECONDS = 25 * 60
+KEEP_ALIVE_INTERVAL_SECONDS = 5 * 60
 KEEP_ALIVE_START_DELAY_SECONDS = 5
 
 
