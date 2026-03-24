@@ -273,13 +273,33 @@ class DatabaseManager:
 
         def ensure_column(table_name: str, column_def: str):
             """Add missing column safely for backward compatibility with old backups."""
+            # Use separate connection for ALTER TABLE to avoid locking issues
             try:
-                cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_def}")
-                conn.commit()
-                logger.info(f"✅ Added missing column {table_name}.{column_def.split()[0]}")
-            except sqlite3.OperationalError:
-                # Column already exists (or cannot be added) -> ignore for compatibility.
-                pass
+                column_name = column_def.split()[0]
+                logger.debug(f"🔄 Attempting to add column {table_name}.{column_name}...")
+                
+                alter_conn = self.get_connection()
+                alter_cursor = alter_conn.cursor()
+                
+                try:
+                    alter_cursor.execute(f"ALTER TABLE {table_name} ADD COLUMN {column_def}")
+                    alter_conn.commit()
+                    logger.info(f"✅ Added missing column {table_name}.{column_name}")
+                except sqlite3.OperationalError as e:
+                    # Column already exists or other error -> try to continue
+                    if "duplicate column name" in str(e).lower() or "already exists" in str(e).lower():
+                        logger.debug(f"ℹ️ Column {table_name}.{column_name} already exists")
+                    else:
+                        logger.warning(f"⚠️ Could not add column {table_name}.{column_name}: {e}")
+                finally:
+                    alter_conn.close()
+                    
+                # Small delay between operations to let database settle
+                import time
+                time.sleep(0.1)
+                
+            except Exception as e:
+                logger.error(f"❌ Error ensuring column {table_name}.{column_def.split()[0]}: {e}")
         
         # جدول المستخدمين
         cursor.execute("""
@@ -3223,8 +3243,49 @@ async def restore_backup_handler(update: Update, context: ContextTypes.DEFAULT_T
                 except Exception:
                     pass
 
+        # التحقق من سلامة قاعدة البيانات المستعادة
+        try:
+            import time
+            logger.info("🔍 Validating restored database integrity... (may take a moment)")
+            repair_conn = sqlite3.connect(DATABASE_PATH, timeout=60.0)
+            repair_conn.execute("PRAGMA journal_mode=WAL")
+            repair_conn.execute("PRAGMA busy_timeout = 60000")
+            repair_conn.execute("PRAGMA integrity_check")
+            repair_conn.execute("PRAGMA foreign_keys=DEFER")
+            
+            # محاولة إصلاح أي أخطاء
+            cursor = repair_conn.cursor()
+            cursor.execute("PRAGMA integrity_check")
+            check_result = cursor.fetchone()
+            
+            if check_result and check_result[0] != 'ok':
+                logger.warning(f"⚠️ Database integrity check failed: {check_result}. Attempting repair with VACUUM...")
+                try:
+                    repair_conn.execute("VACUUM")
+                    logger.info("✅ Database VACUUM completed")
+                except Exception as vacuum_err:
+                    logger.warning(f"⚠️ VACUUM could not complete: {vacuum_err}")
+            
+            # تفعيل الفحوصات الأجنبية مرة أخرى
+            repair_conn.execute("PRAGMA foreign_keys=ON")
+            repair_conn.commit()
+            repair_conn.close()
+            logger.info("✅ Database validation passed")
+            
+            # انتظار قصير للسماح للملفات بالتزامن
+            time.sleep(1)
+            
+        except Exception as validate_err:
+            logger.warning(f"⚠️ Database validation warning (will try schema migration anyway): {validate_err}")
+
         # ترقية schema مباشرة بعد الاستعادة حتى تعمل النسخ القديمة مع الكود الحالي
-        db.init_database()
+        try:
+            logger.info("🔄 Starting database schema migration...")
+            db.init_database()
+            logger.info("✅ Database schema migration completed successfully")
+        except Exception as migration_err:
+            logger.error(f"❌ Error during schema migration: {migration_err}")
+            raise
         
         # حذف الملف المؤقت
         os.remove(temp_backup_path)
