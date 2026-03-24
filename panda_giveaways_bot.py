@@ -6189,16 +6189,17 @@ async def handle_web_app_data(update: Update, context: ContextTypes.DEFAULT_TYPE
 # 🧡 KEEP-ALIVE MECHANISM (Render Service Timeout Prevention)
 # ═══════════════════════════════════════════════════════════════
 # الهدف: منع توقف الخدمة بعد 30 دقيقة خمول على Render free tier
-# المبدأ: إرسال ping لـ /health كل 25 دقيقة لإبقاء الخدمة مستيقظة
+# المبدأ: إرسال ping لـ /api/ping كل 25 دقيقة لإبقاء الخدمة مستيقظة
 
-async def keep_service_alive(context: ContextTypes.DEFAULT_TYPE = None):
-    """
-    حفظ الخدمة من السكون على Render free tier
-    يتم استدعاء هذه الدالة كل 25 دقيقة
-    """
+KEEP_ALIVE_INTERVAL_SECONDS = 25 * 60
+KEEP_ALIVE_START_DELAY_SECONDS = 5
+
+
+def send_keep_alive_ping():
+    """Send one keep-alive request to the local Flask API."""
     flask_base_url = os.environ.get('FLASK_BASE_URL', 'http://localhost:10000')
     health_url = f"{flask_base_url}/api/ping"
-    
+
     try:
         import requests as req
         response = req.get(health_url, timeout=5)
@@ -6206,9 +6207,30 @@ async def keep_service_alive(context: ContextTypes.DEFAULT_TYPE = None):
             logger.info(f"✅ Keep-alive ping successful ({response.status_code})")
         else:
             logger.warning(f"⚠️ Keep-alive ping returned {response.status_code}")
-    except Exception as e:
-        logger.warning(f"⚠️ Keep-alive ping failed: {e}")
-        # لا نرفع الخطأ - هذا job اختياري للحفاظ على الخدمة
+    except Exception as ping_error:
+        logger.warning(f"⚠️ Keep-alive ping failed: {ping_error}")
+
+
+def start_keep_alive_fallback_thread():
+    """Fallback keep-alive loop when PTB JobQueue is unavailable."""
+    def _loop():
+        time.sleep(KEEP_ALIVE_START_DELAY_SECONDS)
+        while True:
+            send_keep_alive_ping()
+            time.sleep(KEEP_ALIVE_INTERVAL_SECONDS)
+
+    thread = threading.Thread(target=_loop, daemon=True, name="keep-alive-fallback")
+    thread.start()
+    logger.info("✅ Keep-alive fallback thread started (every 25 minutes)")
+    print("✅ Keep-alive fallback thread started to prevent service timeout")
+    sys.stdout.flush()
+
+async def keep_service_alive(context: ContextTypes.DEFAULT_TYPE = None):
+    """
+    حفظ الخدمة من السكون على Render free tier
+    يتم استدعاء هذه الدالة كل 25 دقيقة
+    """
+    send_keep_alive_ping()
 
 
 async def global_error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -6325,18 +6347,24 @@ def main():
         # 🧡 Schedule keep-alive job (Render service timeout prevention)
         # ═══════════════════════════════════════════════════════════════
         # جدولة ping تلقائي كل 25 دقيقة لمنع توقف الخدمة
-        try:
-            application.job_queue.run_repeating(
-                keep_service_alive, 
-                interval=25*60,  # كل 25 دقيقة
-                first=5  # ابدأ بعد 5 ثوان من التشغيل
-            )
-            logger.info("✅ Keep-alive job scheduled (every 25 minutes)")
-            print("✅ Keep-alive job scheduled to prevent service timeout")
-            sys.stdout.flush()
-        except Exception as keep_alive_error:
-            logger.warning(f"⚠️ Failed to schedule keep-alive job: {keep_alive_error}")
-            logger.warning("⚠️ Service may timeout after 30 minutes of inactivity")
+        job_queue = application.job_queue
+        if job_queue is not None:
+            try:
+                job_queue.run_repeating(
+                    keep_service_alive,
+                    interval=KEEP_ALIVE_INTERVAL_SECONDS,
+                    first=KEEP_ALIVE_START_DELAY_SECONDS
+                )
+                logger.info("✅ Keep-alive job scheduled via PTB JobQueue (every 25 minutes)")
+                print("✅ Keep-alive job scheduled via PTB JobQueue")
+                sys.stdout.flush()
+            except Exception as keep_alive_error:
+                logger.warning(f"⚠️ Failed to schedule keep-alive job via JobQueue: {keep_alive_error}")
+                logger.warning("⚠️ Switching to fallback keep-alive thread")
+                start_keep_alive_fallback_thread()
+        else:
+            logger.warning("⚠️ PTB JobQueue is unavailable, switching to fallback keep-alive thread")
+            start_keep_alive_fallback_thread()
         
     except Exception as build_error:
         logger.error(f"❌ Failed to build application: {build_error}")

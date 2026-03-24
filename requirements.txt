@@ -2,7 +2,7 @@
 # Compatible with Python 3.14+
 
 # Core
-python-telegram-bot==21.8
+python-telegram-bot[job-queue]==21.8
 python-dotenv==1.0.1
 
 # HTTP Libraries (will be patched for Python 3.14)
